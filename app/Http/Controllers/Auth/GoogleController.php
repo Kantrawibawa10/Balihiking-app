@@ -4,46 +4,65 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use GuzzleHttp\Client as HttpClient;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Route;
+use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Facades\Socialite;
-use Laravel\Socialite\Two\InvalidStateException;
 use Throwable;
 
 class GoogleController extends Controller
 {
     /**
-     * Redirect user ke Google OAuth.
+     * Redirect pendaki ke halaman autentikasi Google.
      */
-    public function redirectToGoogle(Request $request)
-    {
+    public function redirectToGoogle(
+        Request $request
+    ): RedirectResponse {
         try {
+
             /*
             |--------------------------------------------------------------------------
-            | Bersihkan login sebelumnya
+            | PENTING
             |--------------------------------------------------------------------------
             |
-            | Filament/Admin dan portal pendaki kemungkinan menggunakan guard web
-            | yang sama. Jika masih ada user yang login, logout terlebih dahulu.
+            | Login Google ini khusus Portal Pendaki.
+            |
+            | Jika sebelumnya ada session admin/pengelola yang aktif,
+            | kita logout terlebih dahulu supaya tidak bercampur dengan
+            | autentikasi Portal Pendaki.
             |
             */
 
-            if (Auth::check()) {
+            if (
+                Auth::check()
+                &&
+                in_array(
+                    Auth::user()?->role,
+                    [
+                        'admin',
+                        'pengelola_jalur',
+                    ],
+                    true
+                )
+            ) {
                 Auth::logout();
 
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                $request
+                    ->session()
+                    ->invalidate();
+
+                $request
+                    ->session()
+                    ->regenerateToken();
             }
 
-            Log::info('Google OAuth Redirect Started', [
-                'session_id' => $request->session()->getId(),
-                'redirect_uri' => config('services.google.redirect'),
-            ]);
+            $provider = $this->googleProvider();
 
-            return Socialite::driver('google')
+            return $provider
                 ->scopes([
                     'openid',
                     'profile',
@@ -53,98 +72,93 @@ class GoogleController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('Google OAuth Redirect Error', [
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            Log::error(
+                'Google OAuth Redirect Error',
+                [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]
+            );
 
             return redirect()
                 ->route('login')
                 ->with(
                     'error',
-                    'Gagal terhubung ke Google. Silakan coba kembali.'
+                    app()->isLocal()
+                        ? 'Google Login Error: ' . $e->getMessage()
+                        : 'Tidak dapat terhubung ke Google. Silakan coba kembali.'
                 );
         }
     }
 
     /**
-     * Callback dari Google.
+     * Callback setelah login Google.
      */
-    public function handleGoogleCallback(Request $request)
-    {
+    public function handleGoogleCallback(
+        Request $request
+    ): RedirectResponse {
         try {
-            Log::info('Google OAuth Callback Received', [
-                'session_id' => $request->session()->getId(),
-                'has_code' => $request->filled('code'),
-                'has_state' => $request->filled('state'),
-                'has_error' => $request->filled('error'),
-                'google_error' => $request->input('error'),
-            ]);
 
             /*
             |--------------------------------------------------------------------------
-            | Ambil informasi user dari Google
+            | GOOGLE PROVIDER
             |--------------------------------------------------------------------------
+            |
+            | Di sinilah request ke:
+            |
+            | https://www.googleapis.com/oauth2/v4/token
+            |
+            | dilakukan.
+            |
+            | Pada localhost, jika PHP tidak memiliki CA Certificate yang
+            | benar, Guzzle akan menghasilkan cURL error 60.
+            |
             */
 
-            $googleUser = Socialite::driver('google')->user();
+            $provider = $this->googleProvider();
 
-            Log::info('Google User Retrieved', [
-                'google_id' => $googleUser->getId(),
-                'email' => $googleUser->getEmail(),
-                'name' => $googleUser->getName(),
-            ]);
+            $googleUser = $provider->user();
 
             /*
             |--------------------------------------------------------------------------
-            | Pastikan Google memberikan email
+            | VALIDASI EMAIL GOOGLE
             |--------------------------------------------------------------------------
             */
 
-            $googleEmail = $googleUser->getEmail();
-
-            if (empty($googleEmail)) {
+            if (
+                empty($googleUser->getEmail())
+            ) {
                 return redirect()
                     ->route('login')
                     ->with(
                         'error',
-                        'Akun Google Anda tidak memberikan alamat email.'
+                        'Google tidak memberikan alamat email untuk akun ini.'
                     );
             }
 
             /*
             |--------------------------------------------------------------------------
-            | Normalisasi informasi Google
+            | CARI USER
             |--------------------------------------------------------------------------
+            |
+            | Prioritas:
+            |
+            | 1. google_id
+            | 2. email
+            |
             */
 
-            $googleId = $googleUser->getId();
-
-            $googleName =
-                $googleUser->getName()
-                ?: $googleUser->getNickname()
-                ?: 'Pendaki';
-
-            /*
-            |--------------------------------------------------------------------------
-            | Cari user berdasarkan google_id
-            |--------------------------------------------------------------------------
-            */
-
-            $user = User::where('google_id', $googleId)->first();
-
-            /*
-            |--------------------------------------------------------------------------
-            | Jika belum ketemu, cari berdasarkan email
-            |--------------------------------------------------------------------------
-            */
-
-            if (! $user) {
-                $user = User::where('email', $googleEmail)->first();
-            }
+            $existingUser = User::query()
+                ->where(
+                    'google_id',
+                    $googleUser->getId()
+                )
+                ->orWhere(
+                    'email',
+                    $googleUser->getEmail()
+                )
+                ->first();
 
             /*
             |--------------------------------------------------------------------------
@@ -152,71 +166,123 @@ class GoogleController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            if ($user) {
+            if ($existingUser) {
 
                 /*
                 |--------------------------------------------------------------------------
-                | Blok akun Admin dari Portal Pendaki
+                | BLOK ADMIN DAN PENGELOLA JALUR
                 |--------------------------------------------------------------------------
+                |
+                | Akun backend tidak boleh masuk dari login Google Pendaki.
+                |
                 */
 
-                if ($user->role === 'admin') {
+                if (
+                    in_array(
+                        $existingUser->role,
+                        [
+                            'admin',
+                            'pengelola_jalur',
+                        ],
+                        true
+                    )
+                ) {
 
-                    Log::warning('Admin tried Google login from Pendaki Portal', [
-                        'user_id' => $user->id,
-                        'email' => $user->email,
-                    ]);
+                    Auth::logout();
 
-                    return redirect()
-                        ->route('login')
+                    $request
+                        ->session()
+                        ->invalidate();
+
+                    $request
+                        ->session()
+                        ->regenerateToken();
+
+                    $adminLoginUrl =
+                        Route::has(
+                            'filament.admin.auth.login'
+                        )
+                            ? route(
+                                'filament.admin.auth.login'
+                            )
+                            : url('/admin/login');
+
+                    return redirect(
+                        $adminLoginUrl
+                    )
                         ->with(
                             'error',
-                            'Akun tersebut merupakan akun Admin. Silakan login melalui Portal Admin.'
+                            'Akun administrator dan pengelola jalur wajib login melalui Portal Admin.'
                         );
                 }
 
                 /*
                 |--------------------------------------------------------------------------
-                | Hubungkan akun lama dengan Google
+                | HUBUNGKAN GOOGLE ID
                 |--------------------------------------------------------------------------
+                |
+                | Jika user sebelumnya daftar manual menggunakan email yang sama,
+                | google_id akan disimpan ketika pertama login Google.
+                |
                 */
 
-                if (empty($user->google_id)) {
-                    $user->google_id = $googleId;
+                $updateData = [];
+
+                if (
+                    empty(
+                        $existingUser->google_id
+                    )
+                ) {
+                    $updateData['google_id'] =
+                        $googleUser->getId();
+                }
+
+                /*
+                 * Sinkronkan nama hanya jika nama user sebelumnya kosong.
+                 */
+                if (
+                    empty(
+                        $existingUser->name
+                    )
+                    &&
+                    ! empty(
+                        $googleUser->getName()
+                    )
+                ) {
+                    $updateData['name'] =
+                        $googleUser->getName();
+                }
+
+                if (
+                    ! empty(
+                        $updateData
+                    )
+                ) {
+                    $existingUser->update(
+                        $updateData
+                    );
                 }
 
                 /*
                 |--------------------------------------------------------------------------
-                | Isi nama bila sebelumnya kosong
+                | LOGIN
                 |--------------------------------------------------------------------------
                 */
 
-                if (empty($user->name)) {
-                    $user->name = $googleName;
-                }
+                Auth::login(
+                    $existingUser,
+                    true
+                );
 
-                $user->save();
-
-                /*
-                |--------------------------------------------------------------------------
-                | Login
-                |--------------------------------------------------------------------------
-                */
-
-                Auth::login($user, true);
-
-                $request->session()->regenerate();
-
-                Log::info('Existing user login via Google successful', [
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                ]);
+                $request
+                    ->session()
+                    ->regenerate();
 
                 return redirect()
-                    ->route('pendaki.dashboard')
-                    ->with(
-                        'success',
-                        'Berhasil masuk menggunakan Google.'
+                    ->intended(
+                        route(
+                            'pendaki.dashboard'
+                        )
                     );
             }
 
@@ -224,113 +290,164 @@ class GoogleController extends Controller
             |--------------------------------------------------------------------------
             | USER BARU
             |--------------------------------------------------------------------------
-            |
-            | Jangan gunakan password => null.
-            |
-            | Walaupun user masuk melalui Google, database Laravel umumnya
-            | mempunyai kolom password NOT NULL.
-            |
-            | Kita buat random password yang tidak diketahui user.
-            |
             */
 
-            $user = new User();
+            $newUser = User::create([
+                'name' =>
+                    $googleUser->getName()
+                    ?: 'Pendaki',
 
-            $user->name = $googleName;
-            $user->email = $googleEmail;
-            $user->google_id = $googleId;
+                'email' =>
+                    $googleUser->getEmail(),
+
+                'google_id' =>
+                    $googleUser->getId(),
+
+                /*
+                 * Google login tidak membutuhkan password lokal.
+                 */
+                'password' =>
+                    null,
+
+                /*
+                 * Google login selalu menghasilkan akun Pendaki.
+                 */
+                'role' =>
+                    'user',
+            ]);
 
             /*
             |--------------------------------------------------------------------------
-            | Random password
+            | LOGIN USER BARU
             |--------------------------------------------------------------------------
             */
 
-            $user->password = Hash::make(
-                Str::random(64)
+            Auth::login(
+                $newUser,
+                true
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            | Role portal Pendaki
-            |--------------------------------------------------------------------------
-            */
-
-            $user->role = 'user';
-
-            $user->save();
-
-            /*
-            |--------------------------------------------------------------------------
-            | Login user baru
-            |--------------------------------------------------------------------------
-            */
-
-            Auth::login($user, true);
-
-            $request->session()->regenerate();
-
-            Log::info('New Google user registered successfully', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'google_id' => $user->google_id,
-            ]);
+            $request
+                ->session()
+                ->regenerate();
 
             return redirect()
-                ->route('pendaki.dashboard')
-                ->with(
-                    'success',
-                    'Selamat datang di Jalur Bali.'
-                );
-
-        } catch (InvalidStateException $e) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Invalid OAuth State
-            |--------------------------------------------------------------------------
-            */
-
-            Log::error('Google OAuth Invalid State', [
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'session_id' => $request->session()->getId(),
-                'session_driver' => config('session.driver'),
-                'session_domain' => config('session.domain'),
-                'session_secure' => config('session.secure'),
-            ]);
-
-            return redirect()
-                ->route('login')
-                ->with(
-                    'error',
-                    'Sesi login Google sudah tidak valid. Silakan coba login kembali.'
+                ->route(
+                    'pendaki.dashboard'
                 );
 
         } catch (Throwable $e) {
 
+            Log::error(
+                'Google OAuth Callback Error',
+                [
+                    'message' =>
+                        $e->getMessage(),
+
+                    'file' =>
+                        $e->getFile(),
+
+                    'line' =>
+                        $e->getLine(),
+
+                    'url' =>
+                        $request->fullUrl(),
+                ]
+            );
+
             /*
             |--------------------------------------------------------------------------
-            | Error lainnya
+            | LOCAL DEBUG
             |--------------------------------------------------------------------------
+            |
+            | Di localhost tampilkan pesan asli agar mudah debugging.
+            | Di production jangan tampilkan exception asli.
+            |
             */
 
-            Log::error('Google OAuth Callback Error', [
-                'exception' => get_class($e),
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            $message =
+                app()->isLocal()
+                    ? 'Google Login Error: '
+                        . $e->getMessage()
+                    : 'Gagal login menggunakan Google. Silakan coba kembali.';
 
             return redirect()
                 ->route('login')
                 ->with(
                     'error',
-                    app()->environment('local')
-                        ? 'Google Login Error: '.$e->getMessage()
-                        : 'Gagal login menggunakan Google. Silakan coba kembali.'
+                    $message
                 );
         }
+    }
+
+    /**
+     * Membuat Socialite Google Provider.
+     *
+     * Pada localhost kita bisa menonaktifkan SSL certificate verification
+     * melalui GOOGLE_OAUTH_SSL_VERIFY=false.
+     *
+     * Production WAJIB menggunakan SSL verification.
+     */
+    private function googleProvider(): Provider
+    {
+        $provider =
+            Socialite::driver(
+                'google'
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | SSL VERIFICATION
+        |--------------------------------------------------------------------------
+        */
+
+        $verifySsl =
+            config(
+                'services.google.ssl_verify',
+                true
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | SAFETY
+        |--------------------------------------------------------------------------
+        |
+        | verify=false hanya diperbolehkan ketika APP_ENV=local.
+        |
+        | Walaupun .env production salah mengatur false,
+        | kode ini tetap memaksa verify=true di production.
+        |
+        */
+
+        if (! app()->isLocal()) {
+            $verifySsl = true;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | CUSTOM GUZZLE CLIENT
+        |--------------------------------------------------------------------------
+        */
+
+        $httpClient =
+            new HttpClient([
+                'verify' =>
+                    $verifySsl,
+
+                'timeout' =>
+                    15,
+
+                'connect_timeout' =>
+                    10,
+
+                'http_errors' =>
+                    true,
+            ]);
+
+        $provider->setHttpClient(
+            $httpClient
+        );
+
+        return $provider;
     }
 }
