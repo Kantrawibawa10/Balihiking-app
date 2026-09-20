@@ -4,7 +4,9 @@ use App\Filament\Pages\LiveTracking;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\PendakiAuthController;
 use App\Http\Controllers\LandingController;
+use App\Http\Controllers\Pendaki\AccountController;
 use App\Http\Controllers\Pendaki\DashboardController;
+use App\Http\Controllers\Pendaki\IdentityDocumentController;
 use App\Http\Controllers\Pendaki\LiveTrackController;
 use App\Http\Controllers\Pendaki\MountainController;
 use App\Http\Controllers\Pendaki\ProfileController;
@@ -28,7 +30,6 @@ Route::get('/debug-auth', function () {
             : null,
     ]);
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -145,12 +146,32 @@ Route::middleware('auth')
         |--------------------------------------------------------------------------
         */
 
+        // Route::get(
+        //     '/gunung/{mountain}',
+        //     [MountainController::class, 'show']
+        // )
+        //     ->whereNumber('mountain')
+        //     ->name('mountain.show');
+
         Route::get(
             '/gunung/{mountain}',
-            [MountainController::class, 'show']
-        )
-            ->whereNumber('mountain')
-            ->name('mountain.show');
+            [
+                MountainController::class,
+                'show',
+            ]
+        )->name(
+            'mountains.show'
+        );
+
+        Route::get(
+            '/gunung/{mountain}/weather',
+            [
+                MountainController::class,
+                'weather',
+            ]
+        )->name(
+            'mountains.weather'
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -267,7 +288,64 @@ Route::middleware('auth')
         )
             ->whereNumber('trail')
             ->name('trail.feedback.store');
-            
+
+        /*
+    |--------------------------------------------------------------------------
+    | Account Settings
+    |--------------------------------------------------------------------------
+    */
+
+        Route::get(
+            '/profil/pengaturan-akun',
+            [AccountController::class, 'edit']
+        )->name('profil.account.edit');
+
+        Route::put(
+            '/profil/pengaturan-akun',
+            [AccountController::class, 'update']
+        )->name('profil.account.update');
+
+        Route::put(
+            '/profil/ganti-password',
+            [AccountController::class, 'updatePassword']
+        )->name('profil.password.update');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Identity Documents
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            '/profil/dokumen-identitas',
+            [IdentityDocumentController::class, 'index']
+        )->name('profil.documents.index');
+
+        Route::post(
+            '/profil/dokumen-identitas',
+            [IdentityDocumentController::class, 'store']
+        )->name('profil.documents.store');
+
+        Route::get(
+            '/profil/dokumen-identitas/{identityDocument}/view',
+            [IdentityDocumentController::class, 'view']
+        )->name('profil.documents.view');
+
+        Route::delete(
+            '/profil/dokumen-identitas/{identityDocument}',
+            [IdentityDocumentController::class, 'destroy']
+        )->name('profil.documents.destroy');
+
+        Route::get(
+            '/simaksi',
+            [SimaksiController::class, 'index']
+        )->name('simaksi');
+
+        Route::post(
+            '/simaksi',
+            [SimaksiController::class, 'store']
+        )->name('simaksi.store');
+
     });
 
 /*

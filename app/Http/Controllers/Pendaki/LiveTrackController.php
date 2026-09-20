@@ -12,30 +12,16 @@ use Illuminate\View\View;
 
 class LiveTrackController extends Controller
 {
-    /**
-     * Akurasi GPS maksimum yang dianggap layak.
-     */
-    private const MAX_GPS_ACCURACY_M = 50;
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX
+    |--------------------------------------------------------------------------
+    */
 
-    /**
-     * Radius maksimal dari titik finish.
-     */
-    private const FINISH_RADIUS_M = 30;
-
-    /**
-     * Menampilkan halaman Live Tracking.
-     */
     public function index(Request $request): View
     {
         $user = $request->user();
-
         $trailId = $request->integer('trail_id');
-
-        /*
-        |--------------------------------------------------------------------------
-        | BELUM MEMILIH JALUR
-        |--------------------------------------------------------------------------
-        */
 
         if (! $trailId) {
             return view('pendaki.live-track', [
@@ -46,19 +32,13 @@ class LiveTrackController extends Controller
                 'checkpoints' => [],
                 'startPoint' => null,
                 'finishPoint' => null,
+                'sessionStatus' => 'idle',
             ]);
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL JALUR
-        |--------------------------------------------------------------------------
-        */
 
         $trail = HikingTrail::query()
             ->with([
                 'mountain',
-
                 'checkpoints' => function ($query) {
                     $query
                         ->select([
@@ -78,140 +58,143 @@ class LiveTrackController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | CARI SESI PENDAKIAN AKTIF
+        | SESSION AKTIF
         |--------------------------------------------------------------------------
-        |
-        | Jika user sebelumnya sudah memulai tracking tetapi belum selesai,
-        | jangan membuat user_routes baru lagi.
-        |
         */
 
-        $userRoute = UserRoute::query()
+        $activeUserRoute = UserRoute::query()
             ->where('user_id', $user->id)
-            ->where(
-                'hiking_trail_id',
-                $trail->id
-            )
+            ->where('hiking_trail_id', $trail->id)
             ->whereNull('completed_at')
             ->latest('id')
             ->first();
 
         /*
         |--------------------------------------------------------------------------
-        | BUAT SESI BARU
+        | SESSION TERAKHIR
         |--------------------------------------------------------------------------
-        |
-        | gpx_file_path memang NULL di awal.
-        |
-        | File GPX user baru bisa dibuat nanti setelah ada rekaman perjalanan.
-        |
         */
 
-        if (! $userRoute) {
+        $lastUserRoute = UserRoute::query()
+            ->where('user_id', $user->id)
+            ->where('hiking_trail_id', $trail->id)
+            ->latest('id')
+            ->first();
+
+        $startNew = $request->boolean('start');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TENTUKAN SESSION
+        |--------------------------------------------------------------------------
+        */
+
+        if ($activeUserRoute) {
+            /*
+            | Masih ada pendakian aktif.
+            */
+            $userRoute = $activeUserRoute;
+            $sessionStatus = 'active';
+        } elseif ($startNew || ! $lastUserRoute) {
+            /*
+            | Mulai pendakian baru.
+            */
             $userRoute = UserRoute::create([
                 'user_id' => $user->id,
                 'hiking_trail_id' => $trail->id,
                 'gpx_file_path' => null,
                 'completed_at' => null,
             ]);
+
+            $sessionStatus = 'active';
+        } else {
+            /*
+            | Pendakian sebelumnya sudah selesai.
+            | Jangan otomatis membuat session baru.
+            */
+            $userRoute = $lastUserRoute;
+            $sessionStatus = 'completed';
         }
 
         /*
         |--------------------------------------------------------------------------
-        | KOORDINAT JALUR
+        | ROUTE COORDINATES
         |--------------------------------------------------------------------------
         */
 
-        $routeCoordinates =
-            $this->resolveRouteCoordinates(
-                $trail
-            );
+        $routeCoordinates = $this->resolveRouteCoordinates($trail);
 
         /*
         |--------------------------------------------------------------------------
-        | CHECKPOINT
+        | CHECKPOINTS
         |--------------------------------------------------------------------------
         */
 
-        $checkpoints = $trail
-            ->checkpoints
+        $checkpoints = $trail->checkpoints
             ->filter(function ($checkpoint) {
-                return
-                    is_numeric($checkpoint->latitude)
-                    &&
-                    is_numeric($checkpoint->longitude);
+                return is_numeric($checkpoint->latitude)
+                    && is_numeric($checkpoint->longitude);
             })
             ->values()
             ->map(function ($checkpoint, $index) {
                 return [
                     'id' => $checkpoint->id,
-
-                    'name' => $checkpoint->name
-                        ?: 'Pos ' . ($index + 1),
-
-                    'latitude' =>
-                        (float) $checkpoint->latitude,
-
-                    'longitude' =>
-                        (float) $checkpoint->longitude,
-
-                    'elevation_m' =>
-                        $checkpoint->elevation_m !== null
-                            ? (int) $checkpoint->elevation_m
-                            : null,
-
-                    'type' =>
-                        $checkpoint->type,
+                    'name' => $checkpoint->name ?: 'Pos ' . ($index + 1),
+                    'latitude' => (float) $checkpoint->latitude,
+                    'longitude' => (float) $checkpoint->longitude,
+                    'elevation_m' => $checkpoint->elevation_m !== null
+                        ? (int) $checkpoint->elevation_m
+                        : null,
+                    'type' => $checkpoint->type,
                 ];
             })
             ->toArray();
 
         /*
         |--------------------------------------------------------------------------
-        | START & FINISH
+        | START / FINISH
         |--------------------------------------------------------------------------
         */
 
         $startPoint = null;
         $finishPoint = null;
 
-        if (
-            count($routeCoordinates) >= 2
-        ) {
-            $startPoint =
-                $routeCoordinates[0];
-
-            $finishPoint =
-                $routeCoordinates[
-                    count($routeCoordinates) - 1
-                ];
+        if (count($routeCoordinates) >= 2) {
+            $startPoint = $routeCoordinates[0];
+            $finishPoint = $routeCoordinates[count($routeCoordinates) - 1];
         }
 
-        return view(
-            'pendaki.live-track',
-            compact(
-                'user',
-                'trail',
-                'userRoute',
-                'routeCoordinates',
-                'checkpoints',
-                'startPoint',
-                'finishPoint'
-            )
-        );
+        return view('pendaki.live-track', compact(
+            'user',
+            'trail',
+            'userRoute',
+            'routeCoordinates',
+            'checkpoints',
+            'startPoint',
+            'finishPoint',
+            'sessionStatus'
+        ));
     }
 
-    /**
-     * Simpan lokasi realtime pengguna.
-     */
-    public function storeLocation(
-        Request $request
-    ): JsonResponse {
+    /*
+    |--------------------------------------------------------------------------
+    | STORE LOCATION
+    |--------------------------------------------------------------------------
+    */
+
+    public function storeLocation(Request $request): JsonResponse
+    {
         $validated = $request->validate([
             'trail_id' => [
                 'required',
                 'integer',
                 'exists:hiking_trails,id',
+            ],
+
+            'user_route_id' => [
+                'nullable',
+                'integer',
+                'exists:user_routes,id',
             ],
 
             'latitude' => [
@@ -244,116 +227,86 @@ class LiveTrackController extends Controller
             ],
         ]);
 
-        $user =
-            $request->user();
+        $user = $request->user();
 
         $trail = HikingTrail::query()
-            ->whereKey(
-                $validated['trail_id']
-            )
-            ->where(
-                'is_active',
-                true
-            )
+            ->whereKey($validated['trail_id'])
+            ->where('is_active', true)
             ->firstOrFail();
 
-        /*
-        |--------------------------------------------------------------------------
-        | PASTIKAN ADA SESI AKTIF
-        |--------------------------------------------------------------------------
-        */
+        $query = UserRoute::query()
+            ->where('user_id', $user->id)
+            ->where('hiking_trail_id', $trail->id)
+            ->whereNull('completed_at');
 
-        $userRoute = UserRoute::query()
-            ->where(
-                'user_id',
-                $user->id
-            )
-            ->where(
-                'hiking_trail_id',
-                $trail->id
-            )
-            ->whereNull(
-                'completed_at'
-            )
+        if (! empty($validated['user_route_id'])) {
+            $query->where('id', $validated['user_route_id']);
+        }
+
+        $userRoute = $query
             ->latest('id')
             ->first();
 
         if (! $userRoute) {
             return response()->json([
                 'status' => 'error',
-
-                'message' =>
-                    'Sesi pendakian tidak ditemukan atau sudah selesai.',
+                'message' => 'Sesi pendakian tidak ditemukan atau sudah selesai.',
             ], 422);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | SIMPAN GPS
-        |--------------------------------------------------------------------------
-        */
-
         $location = UserLocation::create([
-            'user_id' =>
-                $user->id,
-
-            'hiking_trail_id' =>
-                $trail->id,
-
-            'latitude' =>
-                $validated['latitude'],
-
-            'longitude' =>
-                $validated['longitude'],
-
-            'altitude_m' =>
-                $validated['altitude_m']
-                ?? null,
-
-            'battery_level' =>
-                $validated['battery_level']
-                ?? null,
-
-            'status' =>
-                $validated['status']
-                ?? 'tracking',
-
-            'recorded_at' =>
-                now(),
+            'user_id' => $user->id,
+            'hiking_trail_id' => $trail->id,
+            'latitude' => $validated['latitude'],
+            'longitude' => $validated['longitude'],
+            'altitude_m' => $validated['altitude_m'] ?? null,
+            'battery_level' => $validated['battery_level'] ?? null,
+            'status' => $validated['status'] ?? 'tracking',
+            'recorded_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
-
-            'message' =>
-                'Lokasi berhasil diperbarui.',
+            'message' => 'Lokasi berhasil diperbarui.',
 
             'data' => [
-                'id' =>
-                    $location->id,
-
-                'user_route_id' =>
-                    $userRoute->id,
-
-                'recorded_at' =>
-                    $location
-                        ->recorded_at
-                        ?->toIso8601String(),
+                'id' => $location->id,
+                'user_route_id' => $userRoute->id,
+                'recorded_at' => now()->toIso8601String(),
             ],
         ]);
     }
 
-    /**
-     * Menyelesaikan pendakian.
-     */
-    public function complete(
-        Request $request
-    ): JsonResponse {
+    /*
+    |--------------------------------------------------------------------------
+    | COMPLETE HIKE
+    |--------------------------------------------------------------------------
+    |
+    | Pendakian boleh diselesaikan kapan saja.
+    |
+    | Tidak perlu berada di finish.
+    | Tidak perlu GPS <= 50 meter.
+    |
+    | Yang penting:
+    | - session masih aktif
+    | - lokasi terakhir tersedia
+    |
+    |--------------------------------------------------------------------------
+    */
+
+    public function complete(Request $request): JsonResponse
+    {
         $validated = $request->validate([
             'trail_id' => [
                 'required',
                 'integer',
                 'exists:hiking_trails,id',
+            ],
+
+            'user_route_id' => [
+                'nullable',
+                'integer',
+                'exists:user_routes,id',
             ],
 
             'latitude' => [
@@ -369,229 +322,120 @@ class LiveTrackController extends Controller
             ],
 
             'accuracy' => [
-                'required',
+                'nullable',
                 'numeric',
                 'min:0',
             ],
+
+            'altitude_m' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'battery_level' => [
+                'nullable',
+                'integer',
+                'between:0,100',
+            ],
         ]);
 
-        $user =
-            $request->user();
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI AKURASI GPS
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            (float) $validated['accuracy']
-            >
-            self::MAX_GPS_ACCURACY_M
-        ) {
-            return response()->json([
-                'status' => 'error',
-
-                'message' =>
-                    'Akurasi GPS belum cukup baik untuk menyelesaikan pendakian.',
-
-                'data' => [
-                    'accuracy' =>
-                        (float) $validated['accuracy'],
-
-                    'required_accuracy' =>
-                        self::MAX_GPS_ACCURACY_M,
-                ],
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL JALUR
-        |--------------------------------------------------------------------------
-        */
+        $user = $request->user();
 
         $trail = HikingTrail::query()
-            ->with('checkpoints')
-            ->where(
-                'is_active',
-                true
-            )
-            ->findOrFail(
-                $validated['trail_id']
-            );
+            ->whereKey($validated['trail_id'])
+            ->firstOrFail();
 
         /*
         |--------------------------------------------------------------------------
-        | KOORDINAT
+        | CARI SESSION AKTIF
         |--------------------------------------------------------------------------
         */
 
-        $routeCoordinates =
-            $this->resolveRouteCoordinates(
-                $trail
+        $activeQuery = UserRoute::query()
+            ->where('user_id', $user->id)
+            ->where('hiking_trail_id', $trail->id)
+            ->whereNull('completed_at');
+
+        if (! empty($validated['user_route_id'])) {
+            $activeQuery->where(
+                'id',
+                $validated['user_route_id']
             );
-
-        if (
-            count($routeCoordinates) < 2
-        ) {
-            return response()->json([
-                'status' => 'error',
-
-                'message' =>
-                    'Data koordinat jalur belum lengkap.',
-            ], 422);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | FINISH POINT
-        |--------------------------------------------------------------------------
-        */
-
-        $finishPoint =
-            $routeCoordinates[
-                count($routeCoordinates) - 1
-            ];
-
-        $latitude =
-            (float) $validated['latitude'];
-
-        $longitude =
-            (float) $validated['longitude'];
-
-        /*
-        |--------------------------------------------------------------------------
-        | JARAK KE FINISH
-        |--------------------------------------------------------------------------
-        */
-
-        $distanceToFinish =
-            $this->haversineMeters(
-                $latitude,
-                $longitude,
-                (float) $finishPoint[0],
-                (float) $finishPoint[1]
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | JARAK DARI JALUR
-        |--------------------------------------------------------------------------
-        */
-
-        $distanceFromRoute =
-            $this->distancePointToPolylineMeters(
-                $latitude,
-                $longitude,
-                $routeCoordinates
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOLERANSI
-        |--------------------------------------------------------------------------
-        */
-
-        $routeTolerance =
-            max(
-                30,
-                (float) $validated['accuracy']
-                * 1.5
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | HARUS DEKAT FINISH
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $distanceToFinish
-            >
-            self::FINISH_RADIUS_M
-        ) {
-            return response()->json([
-                'status' => 'error',
-
-                'message' =>
-                    'Anda belum berada cukup dekat dengan titik akhir jalur.',
-
-                'data' => [
-                    'distance_to_finish_m' =>
-                        round(
-                            $distanceToFinish,
-                            1
-                        ),
-
-                    'required_radius_m' =>
-                        self::FINISH_RADIUS_M,
-                ],
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | HARUS DEKAT JALUR
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $distanceFromRoute
-            >
-            $routeTolerance
-        ) {
-            return response()->json([
-                'status' => 'error',
-
-                'message' =>
-                    'Posisi Anda berada terlalu jauh dari jalur.',
-
-                'data' => [
-                    'distance_from_route_m' =>
-                        round(
-                            $distanceFromRoute,
-                            1
-                        ),
-
-                    'allowed_distance_m' =>
-                        round(
-                            $routeTolerance,
-                            1
-                        ),
-                ],
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | CARI SESI AKTIF
-        |--------------------------------------------------------------------------
-        */
-
-        $userRoute = UserRoute::query()
-            ->where(
-                'user_id',
-                $user->id
-            )
-            ->where(
-                'hiking_trail_id',
-                $trail->id
-            )
-            ->whereNull(
-                'completed_at'
-            )
+        $userRoute = $activeQuery
             ->latest('id')
             ->first();
 
+        /*
+        |--------------------------------------------------------------------------
+        | IDEMPOTENT
+        |--------------------------------------------------------------------------
+        |
+        | Penting saat request offline disinkron ulang.
+        |
+        | Jika sebenarnya sudah selesai, return success.
+        |--------------------------------------------------------------------------
+        */
+
         if (! $userRoute) {
+            $completedQuery = UserRoute::query()
+                ->where('user_id', $user->id)
+                ->where('hiking_trail_id', $trail->id)
+                ->whereNotNull('completed_at');
+
+            if (! empty($validated['user_route_id'])) {
+                $completedQuery->where(
+                    'id',
+                    $validated['user_route_id']
+                );
+            }
+
+            $completedRoute = $completedQuery
+                ->latest('id')
+                ->first();
+
+            if ($completedRoute) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Pendakian sudah diselesaikan.',
+
+                    'data' => [
+                        'user_route_id' => $completedRoute->id,
+                        'completed_at' => optional(
+                            $completedRoute->completed_at
+                        )->toIso8601String(),
+                        'already_completed' => true,
+                    ],
+                ]);
+            }
+
             return response()->json([
                 'status' => 'error',
-
-                'message' =>
-                    'Sesi pendakian aktif tidak ditemukan.',
+                'message' => 'Sesi pendakian aktif tidak ditemukan.',
             ], 422);
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOKASI TERAKHIR
+        |--------------------------------------------------------------------------
+        */
+
+        $latitude = (float) $validated['latitude'];
+        $longitude = (float) $validated['longitude'];
+
+        $accuracy = isset($validated['accuracy'])
+            ? (float) $validated['accuracy']
+            : null;
+
+        $altitude = isset($validated['altitude_m'])
+            ? (float) $validated['altitude_m']
+            : null;
+
+        $batteryLevel = isset($validated['battery_level'])
+            ? (int) $validated['battery_level']
+            : null;
 
         /*
         |--------------------------------------------------------------------------
@@ -599,78 +443,72 @@ class LiveTrackController extends Controller
         |--------------------------------------------------------------------------
         */
 
+        $completedAt = now();
+
         $userRoute->update([
-            'completed_at' =>
-                now(),
+            'completed_at' => $completedAt,
         ]);
 
         /*
         |--------------------------------------------------------------------------
-        | SIMPAN TITIK FINISH
+        | SIMPAN POSISI TERAKHIR
         |--------------------------------------------------------------------------
         */
 
-        UserLocation::create([
-            'user_id' =>
-                $user->id,
-
-            'hiking_trail_id' =>
-                $trail->id,
-
-            'latitude' =>
-                $latitude,
-
-            'longitude' =>
-                $longitude,
-
-            'altitude_m' =>
-                null,
-
-            'battery_level' =>
-                null,
-
-            'status' =>
-                'completed',
-
-            'recorded_at' =>
-                now(),
+        $finalLocation = UserLocation::create([
+            'user_id' => $user->id,
+            'hiking_trail_id' => $trail->id,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'altitude_m' => $altitude,
+            'battery_level' => $batteryLevel,
+            'status' => 'completed',
+            'recorded_at' => $completedAt,
         ]);
 
         return response()->json([
             'status' => 'success',
-
-            'message' =>
-                'Pendakian berhasil diselesaikan.',
+            'message' => 'Pendakian berhasil diselesaikan.',
 
             'data' => [
-                'user_route_id' =>
-                    $userRoute->id,
+                'user_route_id' => $userRoute->id,
+                'location_id' => $finalLocation->id,
 
                 'completed_at' =>
-                    $userRoute
-                        ->completed_at
-                        ?->toIso8601String(),
+                    $completedAt->toIso8601String(),
 
-                'distance_to_finish_m' =>
-                    round(
-                        $distanceToFinish,
-                        1
-                    ),
+                'last_location' => [
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'accuracy' => $accuracy,
+                    'altitude_m' => $altitude,
+                    'battery_level' => $batteryLevel,
+                ],
+
+                'already_completed' => false,
             ],
         ]);
     }
 
-    /**
-     * Mengirim SOS.
-     */
-    public function sendSos(
-        Request $request
-    ): JsonResponse {
+    /*
+    |--------------------------------------------------------------------------
+    | SOS
+    |--------------------------------------------------------------------------
+    */
+
+    public function sendSos(Request $request): JsonResponse
+    {
         $validated = $request->validate([
             'trail_id' => [
                 'required',
                 'integer',
                 'exists:hiking_trails,id',
+            ],
+
+            'user_route_id' => [
+                'nullable',
+                'integer',
+                'exists:user_routes,id',
             ],
 
             'latitude' => [
@@ -697,76 +535,64 @@ class LiveTrackController extends Controller
             ],
         ]);
 
-        $user =
-            $request->user();
+        $user = $request->user();
+
+        $query = UserRoute::query()
+            ->where('user_id', $user->id)
+            ->where(
+                'hiking_trail_id',
+                $validated['trail_id']
+            )
+            ->whereNull('completed_at');
+
+        if (! empty($validated['user_route_id'])) {
+            $query->where(
+                'id',
+                $validated['user_route_id']
+            );
+        }
+
+        $userRoute = $query
+            ->latest('id')
+            ->first();
+
+        if (! $userRoute) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Pendakian sudah selesai atau sesi aktif tidak ditemukan.',
+            ], 422);
+        }
 
         $location = UserLocation::create([
-            'user_id' =>
-                $user->id,
-
-            'hiking_trail_id' =>
-                $validated['trail_id'],
-
-            'latitude' =>
-                $validated['latitude'],
-
-            'longitude' =>
-                $validated['longitude'],
-
-            'altitude_m' =>
-                $validated['altitude_m']
-                ?? null,
-
-            'battery_level' =>
-                $validated['battery_level']
-                ?? null,
-
-            'status' =>
-                'sos',
-
-            'recorded_at' =>
-                now(),
+            'user_id' => $user->id,
+            'hiking_trail_id' => $validated['trail_id'],
+            'latitude' => $validated['latitude'],
+            'longitude' => $validated['longitude'],
+            'altitude_m' => $validated['altitude_m'] ?? null,
+            'battery_level' => $validated['battery_level'] ?? null,
+            'status' => 'sos',
+            'recorded_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
-
-            'message' =>
-                'Sinyal SOS berhasil dikirim. Tetap berada di lokasi yang aman dan tunggu bantuan.',
+            'message' => 'Sinyal SOS berhasil dikirim.',
 
             'data' => [
-                'location_id' =>
-                    $location->id,
-
-                'user' =>
-                    $user->name,
-
-                'trail_id' =>
-                    $validated['trail_id'],
-
-                'latitude' =>
-                    $validated['latitude'],
-
-                'longitude' =>
-                    $validated['longitude'],
-
-                'time' =>
-                    now()->format(
-                        'H:i:s d-m-Y'
-                    ),
+                'location_id' => $location->id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'recorded_at' => now()->toIso8601String(),
             ],
         ]);
     }
 
-    /**
-     * Ambil koordinat jalur.
-     *
-     * Prioritas:
-     *
-     * 1. map_geojson
-     * 2. coordinates
-     * 3. checkpoints
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | RESOLVE ROUTE COORDINATES
+    |--------------------------------------------------------------------------
+    */
+
     private function resolveRouteCoordinates(
         HikingTrail $trail
     ): array {
@@ -776,97 +602,31 @@ class LiveTrackController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        if (
-            ! empty(
-                $trail->map_geojson
-            )
-        ) {
-            $geoJson =
-                $trail->map_geojson;
+        if (! empty($trail->map_geojson)) {
+            $geoJson = $trail->map_geojson;
 
-            if (
-                is_string(
+            if (is_string($geoJson)) {
+                $decoded = json_decode(
+                    $geoJson,
+                    true
+                );
+
+                if (
+                    json_last_error()
+                    ===
+                    JSON_ERROR_NONE
+                ) {
+                    $geoJson = $decoded;
+                }
+            }
+
+            $coordinates =
+                $this->extractGeoJsonCoordinates(
                     $geoJson
-                )
-            ) {
-                $decoded =
-                    json_decode(
-                        $geoJson,
-                        true
-                    );
+                );
 
-                if (
-                    json_last_error()
-                    ===
-                    JSON_ERROR_NONE
-                ) {
-                    $geoJson =
-                        $decoded;
-                }
-            }
-
-            $coordinates =
-                $this
-                    ->extractGeoJsonCoordinates(
-                        $geoJson
-                    );
-
-            if (
-                ! empty(
-                    $coordinates
-                )
-            ) {
+            if (! empty($coordinates)) {
                 return $coordinates;
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | COORDINATES
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            ! empty(
-                $trail->coordinates
-            )
-        ) {
-            $coordinates =
-                $trail->coordinates;
-
-            if (
-                is_string(
-                    $coordinates
-                )
-            ) {
-                $decoded =
-                    json_decode(
-                        $coordinates,
-                        true
-                    );
-
-                if (
-                    json_last_error()
-                    ===
-                    JSON_ERROR_NONE
-                ) {
-                    $coordinates =
-                        $decoded;
-                }
-            }
-
-            $normalized =
-                $this
-                    ->normalizeCoordinateArray(
-                        $coordinates
-                    );
-
-            if (
-                ! empty(
-                    $normalized
-                )
-            ) {
-                return $normalized;
             }
         }
 
@@ -876,13 +636,15 @@ class LiveTrackController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        return $trail
-            ->checkpoints
+        $trail->loadMissing(
+            'checkpoints'
+        );
+
+        return $trail->checkpoints
             ->filter(function ($checkpoint) {
-                return
-                    is_numeric(
-                        $checkpoint->latitude
-                    )
+                return is_numeric(
+                    $checkpoint->latitude
+                )
                     &&
                     is_numeric(
                         $checkpoint->longitude
@@ -890,190 +652,113 @@ class LiveTrackController extends Controller
             })
             ->map(function ($checkpoint) {
                 return [
-                    (float)
-                        $checkpoint->latitude,
-
-                    (float)
-                        $checkpoint->longitude,
+                    (float) $checkpoint->latitude,
+                    (float) $checkpoint->longitude,
                 ];
             })
             ->values()
             ->toArray();
     }
 
-    /**
-     * Extract GeoJSON menjadi format Leaflet:
-     *
-     * [
-     *   [lat, lng],
-     *   ...
-     * ]
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | EXTRACT GEOJSON
+    |--------------------------------------------------------------------------
+    */
+
     private function extractGeoJsonCoordinates(
         mixed $geoJson
     ): array {
-        if (
-            ! is_array(
-                $geoJson
-            )
-        ) {
+        if (! is_array($geoJson)) {
             return [];
         }
 
-        /*
-         * FeatureCollection
-         */
-        if (
-            ($geoJson['type'] ?? null)
-            ===
-            'FeatureCollection'
-        ) {
+        $type =
+            $geoJson['type']
+            ??
+            null;
+
+        if ($type === 'FeatureCollection') {
             foreach (
                 $geoJson['features']
-                ?? []
+                ??
+                []
                 as $feature
             ) {
-                $coordinates =
-                    $this
-                        ->extractGeoJsonCoordinates(
-                            $feature
-                        );
+                $result =
+                    $this->extractGeoJsonCoordinates(
+                        $feature
+                    );
 
-                if (
-                    ! empty(
-                        $coordinates
-                    )
-                ) {
-                    return $coordinates;
+                if (! empty($result)) {
+                    return $result;
                 }
             }
 
             return [];
         }
 
-        /*
-         * Feature
-         */
-        if (
-            ($geoJson['type'] ?? null)
-            ===
-            'Feature'
-        ) {
-            return
-                $this
-                    ->extractGeoJsonCoordinates(
-                        $geoJson['geometry']
-                        ?? []
-                    );
+        if ($type === 'Feature') {
+            return $this->extractGeoJsonCoordinates(
+                $geoJson['geometry']
+                ??
+                []
+            );
         }
 
-        /*
-         * LineString
-         */
-        if (
-            ($geoJson['type'] ?? null)
-            ===
-            'LineString'
-        ) {
+        if ($type === 'LineString') {
             return collect(
                 $geoJson['coordinates']
-                ?? []
+                ??
+                []
             )
-                ->filter(
-                    function (
-                        $coordinate
-                    ) {
-                        return
-                            is_array(
-                                $coordinate
-                            )
-                            &&
-                            count(
-                                $coordinate
-                            )
-                            >=
-                            2
-                            &&
-                            is_numeric(
-                                $coordinate[0]
-                            )
-                            &&
-                            is_numeric(
-                                $coordinate[1]
-                            );
-                    }
-                )
-                ->map(
-                    function (
-                        $coordinate
-                    ) {
-                        /*
-                         * GeoJSON:
-                         *
-                         * [lng, lat]
-                         *
-                         * Leaflet:
-                         *
-                         * [lat, lng]
-                         */
+                ->filter(function ($coordinate) {
+                    return is_array($coordinate)
+                        &&
+                        count($coordinate) >= 2
+                        &&
+                        is_numeric($coordinate[0])
+                        &&
+                        is_numeric($coordinate[1]);
+                })
+                ->map(function ($coordinate) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | GeoJSON = [longitude, latitude]
+                    |--------------------------------------------------------------------------
+                    */
 
-                        return [
-                            (float)
-                                $coordinate[1],
-
-                            (float)
-                                $coordinate[0],
-                        ];
-                    }
-                )
+                    return [
+                        (float) $coordinate[1],
+                        (float) $coordinate[0],
+                    ];
+                })
                 ->values()
                 ->toArray();
         }
 
-        /*
-         * MultiLineString
-         */
-        if (
-            ($geoJson['type'] ?? null)
-            ===
-            'MultiLineString'
-        ) {
+        if ($type === 'MultiLineString') {
             $result = [];
 
             foreach (
                 $geoJson['coordinates']
-                ?? []
+                ??
+                []
                 as $line
             ) {
-                foreach (
-                    $line
-                    as $coordinate
-                ) {
+                foreach ($line as $coordinate) {
                     if (
-                        is_array(
-                            $coordinate
-                        )
+                        is_array($coordinate)
                         &&
-                        count(
-                            $coordinate
-                        )
-                        >=
-                        2
+                        count($coordinate) >= 2
                         &&
-                        is_numeric(
-                            $coordinate[0]
-                        )
+                        is_numeric($coordinate[0])
                         &&
-                        is_numeric(
-                            $coordinate[1]
-                        )
+                        is_numeric($coordinate[1])
                     ) {
                         $result[] = [
-                            (float)
-                                $coordinate[1],
-
-                            (float)
-                                $coordinate[0],
+                            (float) $coordinate[1],
+                            (float) $coordinate[0],
                         ];
                     }
                 }
@@ -1083,343 +768,5 @@ class LiveTrackController extends Controller
         }
 
         return [];
-    }
-
-    /**
-     * Normalisasi kolom coordinates.
-     */
-    private function normalizeCoordinateArray(
-        mixed $coordinates
-    ): array {
-        if (
-            ! is_array(
-                $coordinates
-            )
-        ) {
-            return [];
-        }
-
-        $result = [];
-
-        foreach (
-            $coordinates
-            as $coordinate
-        ) {
-            /*
-             * Format associative:
-             *
-             * {
-             *   lat: ...,
-             *   lng: ...
-             * }
-             */
-            if (
-                is_array(
-                    $coordinate
-                )
-                &&
-                isset(
-                    $coordinate['lat'],
-                    $coordinate['lng']
-                )
-            ) {
-                if (
-                    is_numeric(
-                        $coordinate['lat']
-                    )
-                    &&
-                    is_numeric(
-                        $coordinate['lng']
-                    )
-                ) {
-                    $result[] = [
-                        (float)
-                            $coordinate['lat'],
-
-                        (float)
-                            $coordinate['lng'],
-                    ];
-                }
-
-                continue;
-            }
-
-            /*
-             * Format:
-             *
-             * [lat, lng]
-             */
-            if (
-                is_array(
-                    $coordinate
-                )
-                &&
-                count(
-                    $coordinate
-                )
-                >=
-                2
-                &&
-                is_numeric(
-                    $coordinate[0]
-                )
-                &&
-                is_numeric(
-                    $coordinate[1]
-                )
-            ) {
-                $result[] = [
-                    (float)
-                        $coordinate[0],
-
-                    (float)
-                        $coordinate[1],
-                ];
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * Hitung jarak antar koordinat dalam meter.
-     */
-    private function haversineMeters(
-        float $lat1,
-        float $lng1,
-        float $lat2,
-        float $lng2
-    ): float {
-        $earthRadius =
-            6371000;
-
-        $lat1Rad =
-            deg2rad(
-                $lat1
-            );
-
-        $lat2Rad =
-            deg2rad(
-                $lat2
-            );
-
-        $deltaLat =
-            deg2rad(
-                $lat2 - $lat1
-            );
-
-        $deltaLng =
-            deg2rad(
-                $lng2 - $lng1
-            );
-
-        $a =
-            sin(
-                $deltaLat / 2
-            ) ** 2
-            +
-            cos(
-                $lat1Rad
-            )
-            *
-            cos(
-                $lat2Rad
-            )
-            *
-            sin(
-                $deltaLng / 2
-            ) ** 2;
-
-        $c =
-            2
-            *
-            atan2(
-                sqrt($a),
-                sqrt(
-                    1 - $a
-                )
-            );
-
-        return
-            $earthRadius
-            *
-            $c;
-    }
-
-    /**
-     * Hitung jarak titik user ke polyline jalur.
-     */
-    private function distancePointToPolylineMeters(
-        float $latitude,
-        float $longitude,
-        array $routeCoordinates
-    ): float {
-        if (
-            count(
-                $routeCoordinates
-            )
-            <
-            2
-        ) {
-            return INF;
-        }
-
-        $bestDistance =
-            INF;
-
-        for (
-            $i = 0;
-            $i
-            <
-            count(
-                $routeCoordinates
-            ) - 1;
-            $i++
-        ) {
-            $a =
-                $routeCoordinates[$i];
-
-            $b =
-                $routeCoordinates[
-                    $i + 1
-                ];
-
-            $distance =
-                $this
-                    ->distancePointToSegmentMeters(
-                        $latitude,
-                        $longitude,
-
-                        (float)
-                            $a[0],
-
-                        (float)
-                            $a[1],
-
-                        (float)
-                            $b[0],
-
-                        (float)
-                            $b[1]
-                    );
-
-            if (
-                $distance
-                <
-                $bestDistance
-            ) {
-                $bestDistance =
-                    $distance;
-            }
-        }
-
-        return $bestDistance;
-    }
-
-    /**
-     * Jarak titik ke satu segmen polyline.
-     */
-    private function distancePointToSegmentMeters(
-        float $pLat,
-        float $pLng,
-        float $aLat,
-        float $aLng,
-        float $bLat,
-        float $bLng
-    ): float {
-        $earthRadius =
-            6371000;
-
-        $refLat =
-            deg2rad(
-                $pLat
-            );
-
-        $ax =
-            deg2rad(
-                $aLng - $pLng
-            )
-            *
-            cos(
-                $refLat
-            )
-            *
-            $earthRadius;
-
-        $ay =
-            deg2rad(
-                $aLat - $pLat
-            )
-            *
-            $earthRadius;
-
-        $bx =
-            deg2rad(
-                $bLng - $pLng
-            )
-            *
-            cos(
-                $refLat
-            )
-            *
-            $earthRadius;
-
-        $by =
-            deg2rad(
-                $bLat - $pLat
-            )
-            *
-            $earthRadius;
-
-        $vx =
-            $bx - $ax;
-
-        $vy =
-            $by - $ay;
-
-        $lengthSquared =
-            ($vx * $vx)
-            +
-            ($vy * $vy);
-
-        $t = 0;
-
-        if (
-            $lengthSquared > 0
-        ) {
-            $t =
-                -(
-                    ($ax * $vx)
-                    +
-                    ($ay * $vy)
-                )
-                /
-                $lengthSquared;
-
-            $t =
-                max(
-                    0,
-                    min(
-                        1,
-                        $t
-                    )
-                );
-        }
-
-        $closestX =
-            $ax
-            +
-            ($vx * $t);
-
-        $closestY =
-            $ay
-            +
-            ($vy * $t);
-
-        return sqrt(
-            ($closestX * $closestX)
-            +
-            ($closestY * $closestY)
-        );
     }
 }

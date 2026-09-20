@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Masuk - Jalur Bali</title>
+    <title>Masuk - BaliHiking</title>
 
     {{-- Tailwind CSS --}}
     <script src="https://cdn.tailwindcss.com"></script>
@@ -100,7 +100,7 @@
                     </span>
 
                     <span class="text-lg font-semibold">
-                        Jalur Bali
+                        BaliHiking
                     </span>
                 </a>
 
@@ -174,7 +174,7 @@
                         </span>
 
                         <span class="font-semibold text-jalur-green">
-                            Jalur Bali
+                            BaliHiking
                         </span>
                     </a>
 
@@ -233,7 +233,7 @@
                             </span>
 
                             <span class="font-semibold text-jalur-green">
-                                Jalur Bali
+                                BaliHiking
                             </span>
                         </a>
 
@@ -671,7 +671,7 @@
                 <div class="mx-auto max-w-[420px]">
 
                     <p class="text-xs text-gray-400">
-                        © {{ date('Y') }} Jalur Bali
+                        © {{ date('Y') }} BaliHiking
                     </p>
 
                 </div>

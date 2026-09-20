@@ -140,4 +140,11 @@ class User extends Authenticatable implements FilamentUser
             'user_id'
         );
     }
+
+    public function identityDocuments(): HasMany
+    {
+        return $this->hasMany(
+            IdentityDocument::class
+        );
+    }
 }
