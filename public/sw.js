@@ -1,31 +1,41 @@
 /*
 |--------------------------------------------------------------------------
-| BaliHiking PWA Service Worker
+| BaliHiking Service Worker
 |--------------------------------------------------------------------------
+|
+| PWA hanya menangani halaman frontend BaliHiking.
+|
+| Route berikut TIDAK PERNAH dicache:
+|
+| /admin
+| /livewire
+| /filament
+| /api
+| /login
+| /logout
+| /register
+| /sanctum
+|
 */
 
-const VERSION =
-    'balihiking-v10';
+const CACHE_VERSION =
+    'balihiking-v12';
 
 
-const STATIC_CACHE =
-    `${VERSION}-static`;
+const APP_CACHE =
+    `${CACHE_VERSION}-app`;
 
 
 const PAGE_CACHE =
-    `${VERSION}-pages`;
+    `${CACHE_VERSION}-pages`;
 
 
 const ASSET_CACHE =
-    `${VERSION}-assets`;
+    `${CACHE_VERSION}-assets`;
 
 
-const IMAGE_CACHE =
-    `${VERSION}-images`;
-
-
-const MAP_TILE_CACHE =
-    `${VERSION}-map-tiles`;
+const MAP_CACHE =
+    `${CACHE_VERSION}-maps`;
 
 
 
@@ -49,39 +59,37 @@ const APP_SHELL = [
 
     '/icons/icon-maskable-512.png',
 
-    '/vendor/tailwindcss.js',
-
-    '/vendor/leaflet/leaflet.css',
-
-    '/vendor/leaflet/leaflet.js',
-
-    '/vendor/sweetalert2/sweetalert2.min.css',
-
-    '/vendor/sweetalert2/sweetalert2.all.min.js',
-
 ];
 
 
 
 /*
 |--------------------------------------------------------------------------
-| NEVER CACHE
+| NETWORK ONLY PATHS
+|--------------------------------------------------------------------------
+|
+| Sangat penting:
+| seluruh Filament/Admin tidak boleh masuk cache PWA.
 |--------------------------------------------------------------------------
 */
 
-const NEVER_CACHE_PATHS = [
+const NETWORK_ONLY_PREFIXES = [
 
-    '/logout',
+    '/admin',
+
+    '/livewire',
+
+    '/filament',
 
     '/api',
 
     '/sanctum',
 
-    '/livewire',
+    '/login',
 
-    '/admin',
+    '/logout',
 
-    '/filament',
+    '/register',
 
 ];
 
@@ -95,16 +103,14 @@ const NEVER_CACHE_PATHS = [
 
 self.addEventListener(
     'install',
-    function (
-        event
-    ) {
+    event => {
 
         event.waitUntil(
-            (async function () {
+            (async () => {
 
                 const cache =
                     await caches.open(
-                        STATIC_CACHE
+                        APP_CACHE
                     );
 
 
@@ -120,7 +126,10 @@ self.addEventListener(
                                 url,
                                 {
                                     cache:
-                                        'reload'
+                                        'reload',
+
+                                    credentials:
+                                        'same-origin',
                                 }
                             );
 
@@ -128,12 +137,7 @@ self.addEventListener(
                         if (
                             response
                             &&
-                            (
-                                response.ok
-                                ||
-                                response.type ===
-                                    'opaque'
-                            )
+                            response.ok
                         ) {
 
                             await cache.put(
@@ -149,8 +153,9 @@ self.addEventListener(
                     ) {
 
                         console.warn(
-                            '[BaliHiking SW] precache gagal:',
-                            url
+                            '[BaliHiking SW] preload gagal:',
+                            url,
+                            error
                         );
 
                     }
@@ -158,8 +163,7 @@ self.addEventListener(
                 }
 
 
-                await self
-                    .skipWaiting();
+                await self.skipWaiting();
 
             })()
         );
@@ -177,68 +181,47 @@ self.addEventListener(
 
 self.addEventListener(
     'activate',
-    function (
-        event
-    ) {
+    event => {
 
         event.waitUntil(
-            (async function () {
-
-                const validCaches = [
-
-                    STATIC_CACHE,
-
-                    PAGE_CACHE,
-
-                    ASSET_CACHE,
-
-                    IMAGE_CACHE,
-
-                    MAP_TILE_CACHE
-
-                ];
-
+            (async () => {
 
                 const cacheNames =
                     await caches.keys();
 
 
                 await Promise.all(
-
                     cacheNames.map(
-                        function (
-                            cacheName
-                        ) {
+                        cacheName => {
 
                             if (
-                                !validCaches
-                                    .includes(
-                                        cacheName
-                                    )
+                                !cacheName.startsWith(
+                                    CACHE_VERSION
+                                )
                             ) {
 
-                                return caches
-                                    .delete(
-                                        cacheName
-                                    );
+                                return caches.delete(
+                                    cacheName
+                                );
 
                             }
 
+
+                            return Promise.resolve();
+
                         }
                     )
-
                 );
 
 
                 if (
-                    'navigationPreload'
-                    in self.registration
+                    self.registration
+                        .navigationPreload
                 ) {
 
                     try {
 
-                        await self
-                            .registration
+                        await self.registration
                             .navigationPreload
                             .enable();
 
@@ -249,9 +232,7 @@ self.addEventListener(
                 }
 
 
-                await self
-                    .clients
-                    .claim();
+                await self.clients.claim();
 
             })()
         );
@@ -267,7 +248,63 @@ self.addEventListener(
 |--------------------------------------------------------------------------
 */
 
-function canCache(
+function isNetworkOnlyPath(
+    pathname
+) {
+
+    return NETWORK_ONLY_PREFIXES
+        .some(
+            prefix => {
+
+                return (
+                    pathname
+                    ===
+                    prefix
+                )
+                ||
+                pathname.startsWith(
+                    `${prefix}/`
+                );
+
+            }
+        );
+
+}
+
+
+
+function isStaticAsset(
+    pathname
+) {
+
+    return /\.(?:css|js|png|jpg|jpeg|webp|svg|gif|ico|woff2?|ttf|eot)$/i
+        .test(
+            pathname
+        );
+
+}
+
+
+
+function isMapTile(
+    url
+) {
+
+    return (
+        url.hostname.includes(
+            'tile.openstreetmap.org'
+        )
+        ||
+        url.hostname.includes(
+            'openstreetmap.org'
+        )
+    );
+
+}
+
+
+
+function canCacheResponse(
     response
 ) {
 
@@ -283,679 +320,10 @@ function canCache(
     return (
         response.ok
         ||
-        response.type ===
-            'opaque'
+        response.type
+        ===
+        'opaque'
     );
-
-}
-
-
-
-function shouldNeverCache(
-    url
-) {
-
-    return NEVER_CACHE_PATHS
-        .some(
-            function (
-                path
-            ) {
-
-                return url.pathname
-                    .startsWith(
-                        path
-                    );
-
-            }
-        );
-
-}
-
-
-
-function isMapTile(
-    url
-) {
-
-    return (
-        url.hostname ===
-            'tile.openstreetmap.org'
-        ||
-        url.hostname.endsWith(
-            '.tile.openstreetmap.org'
-        )
-    );
-
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| NAVIGATION
-|--------------------------------------------------------------------------
-*/
-
-async function networkFirstNavigation(
-    request,
-    preloadPromise
-) {
-
-    const cache =
-        await caches.open(
-            PAGE_CACHE
-        );
-
-
-    try {
-
-        const preload =
-            await preloadPromise;
-
-
-        if (
-            canCache(
-                preload
-            )
-        ) {
-
-            await cache.put(
-                request,
-                preload.clone()
-            );
-
-
-            return preload;
-
-        }
-
-    } catch (
-        error
-    ) {}
-
-
-    try {
-
-        const response =
-            await fetch(
-                request
-            );
-
-
-        if (
-            canCache(
-                response
-            )
-        ) {
-
-            await cache.put(
-                request,
-                response.clone()
-            );
-
-        }
-
-
-        return response;
-
-
-    } catch (
-        error
-    ) {
-
-
-        let cached =
-            await cache.match(
-                request
-            );
-
-
-        if (
-            cached
-        ) {
-
-            return cached;
-
-        }
-
-
-        cached =
-            await cache.match(
-                request,
-                {
-                    ignoreSearch:
-                        true
-                }
-            );
-
-
-        if (
-            cached
-        ) {
-
-            return cached;
-
-        }
-
-
-        cached =
-            await caches.match(
-                request,
-                {
-                    ignoreSearch:
-                        true
-                }
-            );
-
-
-        if (
-            cached
-        ) {
-
-            return cached;
-
-        }
-
-
-        cached =
-            await caches.match(
-                '/'
-            );
-
-
-        if (
-            cached
-        ) {
-
-            return cached;
-
-        }
-
-
-        return offlineFallback();
-
-    }
-
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| OFFLINE FALLBACK
-|--------------------------------------------------------------------------
-*/
-
-async function offlineFallback() {
-
-    const icon =
-        '/icons/icon-192.png';
-
-
-    return new Response(
-        `
-<!DOCTYPE html>
-
-<html lang="id">
-
-<head>
-
-<meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
->
-
-<meta
-    name="theme-color"
-    content="#1a382b"
->
-
-<title>
-    BaliHiking Offline
-</title>
-
-<style>
-
-* {
-    box-sizing:border-box;
-}
-
-body {
-
-    margin:0;
-
-    min-height:100vh;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    padding:24px;
-
-    background:#fbfbfa;
-
-    color:#1a382b;
-
-    font-family:
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Arial,
-        sans-serif;
-
-}
-
-.card {
-
-    width:100%;
-
-    max-width:390px;
-
-    padding:30px 24px;
-
-    border-radius:20px;
-
-    border:
-        1px solid
-        rgba(26,56,43,.10);
-
-    background:white;
-
-    text-align:center;
-
-    box-shadow:
-        0 16px 40px
-        rgba(0,0,0,.08);
-
-}
-
-.icon {
-
-    width:72px;
-
-    height:72px;
-
-    margin:
-        0 auto
-        18px;
-
-    overflow:hidden;
-
-    border-radius:18px;
-
-    background:#1a382b;
-
-}
-
-.icon img {
-
-    width:100%;
-
-    height:100%;
-
-    object-fit:cover;
-
-}
-
-h1 {
-
-    margin:0;
-
-    font-size:22px;
-
-}
-
-p {
-
-    margin:
-        10px 0 0;
-
-    color:#66726c;
-
-    font-size:13px;
-
-    line-height:1.7;
-
-}
-
-button {
-
-    width:100%;
-
-    margin-top:20px;
-
-    padding:13px;
-
-    border:0;
-
-    border-radius:11px;
-
-    color:white;
-
-    background:#f06535;
-
-    font-weight:700;
-
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="card">
-
-    <div class="icon">
-
-        <img
-            src="${icon}"
-            alt="BaliHiking"
-        >
-
-    </div>
-
-    <h1>
-        BaliHiking
-    </h1>
-
-    <p>
-        Internet tidak tersedia.
-        Halaman yang sebelumnya telah dibuka
-        masih dapat digunakan secara offline.
-    </p>
-
-    <button
-        onclick="location.reload()"
-    >
-        Coba Lagi
-    </button>
-
-</div>
-
-</body>
-
-</html>
-        `,
-        {
-            headers: {
-                'Content-Type':
-                    'text/html; charset=UTF-8'
-            }
-        }
-    );
-
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| CACHE FIRST LOCAL ASSET
-|--------------------------------------------------------------------------
-*/
-
-async function localAssetCacheFirst(
-    request
-) {
-
-    const cache =
-        await caches.open(
-            ASSET_CACHE
-        );
-
-
-    const cached =
-        await cache.match(
-            request
-        );
-
-
-    if (
-        cached
-    ) {
-
-        fetch(
-            request
-        )
-        .then(
-            async function (
-                response
-            ) {
-
-                if (
-                    canCache(
-                        response
-                    )
-                ) {
-
-                    await cache.put(
-                        request,
-                        response.clone()
-                    );
-
-                }
-
-            }
-        )
-        .catch(
-            function () {}
-        );
-
-
-        return cached;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                request
-            );
-
-
-        if (
-            canCache(
-                response
-            )
-        ) {
-
-            await cache.put(
-                request,
-                response.clone()
-            );
-
-        }
-
-
-        return response;
-
-
-    } catch (
-        error
-    ) {
-
-        return new Response(
-            '',
-            {
-                status:
-                    408
-            }
-        );
-
-    }
-
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| IMAGE CACHE
-|--------------------------------------------------------------------------
-*/
-
-async function imageCacheFirst(
-    request
-) {
-
-    const cache =
-        await caches.open(
-            IMAGE_CACHE
-        );
-
-
-    const cached =
-        await cache.match(
-            request
-        );
-
-
-    if (
-        cached
-    ) {
-
-        return cached;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                request
-            );
-
-
-        if (
-            canCache(
-                response
-            )
-        ) {
-
-            await cache.put(
-                request,
-                response.clone()
-            );
-
-        }
-
-
-        return response;
-
-
-    } catch (
-        error
-    ) {
-
-        const fallback =
-            await caches.match(
-                '/icons/icon-192.png'
-            );
-
-
-        if (
-            fallback
-        ) {
-
-            return fallback;
-
-        }
-
-
-        return new Response(
-            '',
-            {
-                status:
-                    408
-            }
-        );
-
-    }
-
-}
-
-
-
-/*
-|--------------------------------------------------------------------------
-| MAP TILE
-|--------------------------------------------------------------------------
-|
-| Tile yang sudah pernah berhasil dilihat akan tersimpan.
-|
-*/
-
-async function mapTileCacheFirst(
-    request
-) {
-
-    const cache =
-        await caches.open(
-            MAP_TILE_CACHE
-        );
-
-
-    const cached =
-        await cache.match(
-            request
-        );
-
-
-    if (
-        cached
-    ) {
-
-        return cached;
-
-    }
-
-
-    try {
-
-        const response =
-            await fetch(
-                request
-            );
-
-
-        if (
-            canCache(
-                response
-            )
-        ) {
-
-            await cache.put(
-                request,
-                response.clone()
-            );
-
-        }
-
-
-        return response;
-
-
-    } catch (
-        error
-    ) {
-
-        return new Response(
-            '',
-            {
-                status:
-                    408
-            }
-        );
-
-    }
 
 }
 
@@ -969,17 +337,22 @@ async function mapTileCacheFirst(
 
 self.addEventListener(
     'fetch',
-    function (
-        event
-    ) {
+    event => {
 
         const request =
             event.request;
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | GET ONLY
+        |--------------------------------------------------------------------------
+        */
+
         if (
-            request.method !==
-                'GET'
+            request.method
+            !==
+            'GET'
         ) {
 
             return;
@@ -993,22 +366,33 @@ self.addEventListener(
             );
 
 
+        const sameOrigin =
+            url.origin
+            ===
+            self.location.origin;
+
+
 
         /*
         |--------------------------------------------------------------------------
-        | NAVIGATION
+        | ADMIN / FILAMENT / API = NETWORK ONLY
+        |--------------------------------------------------------------------------
+        |
+        | Jangan pernah fallback ke landing page.
         |--------------------------------------------------------------------------
         */
 
         if (
-            request.mode ===
-                'navigate'
+            sameOrigin
+            &&
+            isNetworkOnlyPath(
+                url.pathname
+            )
         ) {
 
             event.respondWith(
-                networkFirstNavigation(
-                    request,
-                    event.preloadResponse
+                fetch(
+                    request
                 )
             );
 
@@ -1021,18 +405,22 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | NEVER CACHE SENSITIVE INTERNAL ENDPOINT
+        | DOCUMENT NAVIGATION
         |--------------------------------------------------------------------------
         */
 
         if (
-            url.origin ===
-                self.location.origin
-            &&
-            shouldNeverCache(
-                url
-            )
+            request.mode
+            ===
+            'navigate'
         ) {
+
+            event.respondWith(
+                handleNavigation(
+                    event
+                )
+            );
+
 
             return;
 
@@ -1042,7 +430,7 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | OPENSTREETMAP TILE
+        | MAP TILES
         |--------------------------------------------------------------------------
         */
 
@@ -1053,8 +441,9 @@ self.addEventListener(
         ) {
 
             event.respondWith(
-                mapTileCacheFirst(
-                    request
+                cacheFirst(
+                    request,
+                    MAP_CACHE
                 )
             );
 
@@ -1067,56 +456,48 @@ self.addEventListener(
 
         /*
         |--------------------------------------------------------------------------
-        | IMAGE
+        | SAME ORIGIN STATIC ASSETS
         |--------------------------------------------------------------------------
         */
 
         if (
-            request.destination ===
-                'image'
-        ) {
-
-            event.respondWith(
-                imageCacheFirst(
-                    request
-                )
-            );
-
-
-            return;
-
-        }
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOCAL STATIC
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            url.origin ===
-                self.location.origin
+            sameOrigin
             &&
-            [
-                'style',
-                'script',
-                'font',
-                'worker'
-            ].includes(
-                request.destination
+            isStaticAsset(
+                url.pathname
             )
         ) {
 
             event.respondWith(
-                localAssetCacheFirst(
-                    request
+                cacheFirst(
+                    request,
+                    ASSET_CACHE
                 )
             );
 
 
             return;
+
+        }
+
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXTERNAL ASSETS
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !sameOrigin
+        ) {
+
+            event.respondWith(
+                staleWhileRevalidate(
+                    request,
+                    ASSET_CACHE
+                )
+            );
 
         }
 
@@ -1127,21 +508,523 @@ self.addEventListener(
 
 /*
 |--------------------------------------------------------------------------
-| SKIP WAITING
+| NAVIGATION
+|--------------------------------------------------------------------------
+|
+| NETWORK FIRST.
+|
+| Jika frontend tidak memiliki internet:
+| - gunakan exact cached page
+| - kemudian cached /
+|
+| Tetapi function ini tidak pernah digunakan untuk /admin.
+|--------------------------------------------------------------------------
+*/
+
+async function handleNavigation(
+    event
+) {
+
+    const request =
+        event.request;
+
+
+    try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Navigation preload
+        |--------------------------------------------------------------------------
+        */
+
+        const preloadResponse =
+            await event.preloadResponse;
+
+
+        if (
+            preloadResponse
+            &&
+            preloadResponse.ok
+        ) {
+
+            await cachePage(
+                request,
+                preloadResponse.clone()
+            );
+
+
+            return preloadResponse;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Network
+        |--------------------------------------------------------------------------
+        */
+
+        const networkResponse =
+            await fetch(
+                request
+            );
+
+
+        if (
+            networkResponse
+            &&
+            networkResponse.ok
+        ) {
+
+            await cachePage(
+                request,
+                networkResponse.clone()
+            );
+
+
+            return networkResponse;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Server error -> coba cache exact.
+        |--------------------------------------------------------------------------
+        */
+
+        const cachedExact =
+            await caches.match(
+                request,
+                {
+                    ignoreSearch:
+                        false,
+                }
+            );
+
+
+        if (
+            cachedExact
+        ) {
+
+            return cachedExact;
+
+        }
+
+
+        return networkResponse;
+
+
+    } catch (
+        error
+    ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Offline exact page.
+        |--------------------------------------------------------------------------
+        */
+
+        const exact =
+            await caches.match(
+                request
+            );
+
+
+        if (
+            exact
+        ) {
+
+            return exact;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ignore query fallback.
+        |--------------------------------------------------------------------------
+        */
+
+        const ignoreQuery =
+            await caches.match(
+                request,
+                {
+                    ignoreSearch:
+                        true,
+                }
+            );
+
+
+        if (
+            ignoreQuery
+        ) {
+
+            return ignoreQuery;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Frontend landing fallback.
+        |--------------------------------------------------------------------------
+        */
+
+        const home =
+            await caches.match(
+                '/'
+            );
+
+
+        if (
+            home
+        ) {
+
+            return home;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Minimal fallback.
+        |--------------------------------------------------------------------------
+        */
+
+        return new Response(
+            `
+            <!DOCTYPE html>
+
+            <html lang="id">
+
+            <head>
+
+                <meta charset="UTF-8">
+
+                <meta
+                    name="viewport"
+                    content="width=device-width, initial-scale=1"
+                >
+
+                <title>
+                    BaliHiking - Offline
+                </title>
+
+                <style>
+
+                    body {
+                        margin: 0;
+                        min-height: 100vh;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 24px;
+                        box-sizing: border-box;
+                        background: #fbfbfa;
+                        color: #1a382b;
+                        font-family: Arial, sans-serif;
+                    }
+
+                    .card {
+                        width: 100%;
+                        max-width: 360px;
+                        padding: 28px;
+                        border-radius: 24px;
+                        background: white;
+                        text-align: center;
+                        box-shadow: 0 12px 35px rgba(0,0,0,.08);
+                    }
+
+                    h1 {
+                        margin: 0;
+                        font-size: 22px;
+                    }
+
+                    p {
+                        margin-top: 10px;
+                        color: #718078;
+                        line-height: 1.6;
+                        font-size: 14px;
+                    }
+
+                </style>
+
+            </head>
+
+            <body>
+
+                <div class="card">
+
+                    <h1>
+                        BaliHiking
+                    </h1>
+
+                    <p>
+                        Perangkat sedang offline dan halaman ini
+                        belum tersimpan di perangkat.
+                    </p>
+
+                </div>
+
+            </body>
+
+            </html>
+            `,
+            {
+                status:
+                    503,
+
+                headers: {
+                    'Content-Type':
+                        'text/html; charset=utf-8',
+                },
+            }
+        );
+
+    }
+
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| CACHE PAGE
+|--------------------------------------------------------------------------
+*/
+
+async function cachePage(
+    request,
+    response
+) {
+
+    const url =
+        new URL(
+            request.url
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXTRA SAFETY:
+    | jangan cache admin walaupun function terpanggil tidak sengaja.
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        isNetworkOnlyPath(
+            url.pathname
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        !canCacheResponse(
+            response
+        )
+    ) {
+
+        return;
+
+    }
+
+
+    const cache =
+        await caches.open(
+            PAGE_CACHE
+        );
+
+
+    await cache.put(
+        request,
+        response
+    );
+
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| CACHE FIRST
+|--------------------------------------------------------------------------
+*/
+
+async function cacheFirst(
+    request,
+    cacheName
+) {
+
+    const cache =
+        await caches.open(
+            cacheName
+        );
+
+
+    const cached =
+        await cache.match(
+            request
+        );
+
+
+    if (
+        cached
+    ) {
+
+        return cached;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                request
+            );
+
+
+        if (
+            canCacheResponse(
+                response
+            )
+        ) {
+
+            await cache.put(
+                request,
+                response.clone()
+            );
+
+        }
+
+
+        return response;
+
+
+    } catch (
+        error
+    ) {
+
+        throw error;
+
+    }
+
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| STALE WHILE REVALIDATE
+|--------------------------------------------------------------------------
+*/
+
+async function staleWhileRevalidate(
+    request,
+    cacheName
+) {
+
+    const cache =
+        await caches.open(
+            cacheName
+        );
+
+
+    const cached =
+        await cache.match(
+            request
+        );
+
+
+    const networkPromise =
+        fetch(
+            request
+        )
+        .then(
+            async response => {
+
+                if (
+                    canCacheResponse(
+                        response
+                    )
+                ) {
+
+                    await cache.put(
+                        request,
+                        response.clone()
+                    );
+
+                }
+
+
+                return response;
+
+            }
+        )
+        .catch(
+            () =>
+                null
+        );
+
+
+    if (
+        cached
+    ) {
+
+        networkPromise;
+
+
+        return cached;
+
+    }
+
+
+    const response =
+        await networkPromise;
+
+
+    if (
+        response
+    ) {
+
+        return response;
+
+    }
+
+
+    return new Response(
+        '',
+        {
+            status:
+                504,
+        }
+    );
+
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| MESSAGE
 |--------------------------------------------------------------------------
 */
 
 self.addEventListener(
     'message',
-    function (
-        event
-    ) {
+    event => {
 
         if (
             event.data
             &&
-            event.data.type ===
-                'SKIP_WAITING'
+            event.data.type
+            ===
+            'SKIP_WAITING'
         ) {
 
             self.skipWaiting();

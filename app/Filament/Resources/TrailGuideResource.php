@@ -31,28 +31,15 @@ class TrailGuideResource extends Resource
     protected static ?string $navigationGroup =
         'Master Data';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort =
+        4;
 
-    public static function canViewAny(): bool
-    {
-        return auth()
-            ->user()
-            ?->can('trail_guides.view')
-            ?? false;
-    }
 
-    public static function canCreate(): bool
-    {
-        return auth()
-            ->user()
-            ?->can('trail_guides.create')
-            ?? false;
-    }
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return static::canViewAny();
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | FORM
+    |--------------------------------------------------------------------------
+    */
 
     public static function form(
         Form $form
@@ -63,71 +50,193 @@ class TrailGuideResource extends Resource
                 Forms\Components\Section::make(
                     'Informasi Panduan'
                 )
+                    ->description(
+                        'Kelola panduan, informasi keamanan, perlengkapan dan informasi darurat pada jalur pendakian.'
+                    )
                     ->schema([
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | JALUR PENDAKIAN
+                        |--------------------------------------------------------------------------
+                        */
 
                         Forms\Components\Select::make(
                             'hiking_trail_id'
                         )
-                            ->label('Jalur Pendakian')
+                            ->label(
+                                'Jalur Pendakian'
+                            )
                             ->relationship(
-                                'hikingTrail',
-                                'name'
+                                name: 'hikingTrail',
+                                titleAttribute: 'name',
+                                modifyQueryUsing:
+                                    function (
+                                        Builder $query
+                                    ): Builder {
+
+                                        return static::filterTrailQueryByUser(
+                                            $query
+                                        );
+                                    }
+                            )
+                            ->getOptionLabelFromRecordUsing(
+                                function (
+                                    $record
+                                ): string {
+
+                                    $mountainName =
+                                        $record
+                                            ->mountain
+                                            ?->name
+                                        ??
+                                        'Gunung';
+
+                                    return
+                                        $mountainName
+                                        .
+                                        ' - '
+                                        .
+                                        $record->name;
+                                }
                             )
                             ->searchable()
                             ->preload()
                             ->required(),
 
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TYPE
+                        |--------------------------------------------------------------------------
+                        */
+
                         Forms\Components\Select::make(
                             'type'
                         )
-                            ->label('Jenis Informasi')
+                            ->label(
+                                'Jenis Informasi'
+                            )
                             ->options([
-                                'guide' => 'Panduan Perjalanan',
 
-                                'safety' => 'Informasi Keamanan',
+                                'guide' =>
+                                    'Panduan Perjalanan',
 
-                                'warning' => 'Peringatan',
+                                'safety' =>
+                                    'Informasi Keamanan',
 
-                                'equipment' => 'Perlengkapan',
+                                'warning' =>
+                                    'Peringatan',
 
-                                'emergency' => 'Informasi Darurat',
+                                'equipment' =>
+                                    'Perlengkapan',
+
+                                'emergency' =>
+                                    'Informasi Darurat',
+
                             ])
                             ->required()
-                            ->native(false),
+                            ->native(
+                                false
+                            ),
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TITLE
+                        |--------------------------------------------------------------------------
+                        */
 
                         Forms\Components\TextInput::make(
                             'title'
                         )
-                            ->label('Judul')
+                            ->label(
+                                'Judul'
+                            )
+                            ->placeholder(
+                                'Contoh: Persiapan Sebelum Mendaki'
+                            )
                             ->required()
-                            ->maxLength(255)
+                            ->maxLength(
+                                255
+                            )
                             ->columnSpanFull(),
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CONTENT
+                        |--------------------------------------------------------------------------
+                        */
 
                         Forms\Components\Textarea::make(
                             'content'
                         )
-                            ->label('Isi Informasi')
+                            ->label(
+                                'Isi Informasi'
+                            )
+                            ->placeholder(
+                                'Masukkan isi panduan atau informasi keamanan...'
+                            )
                             ->required()
-                            ->rows(7)
+                            ->rows(
+                                8
+                            )
                             ->columnSpanFull(),
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SORT ORDER
+                        |--------------------------------------------------------------------------
+                        */
 
                         Forms\Components\TextInput::make(
                             'sort_order'
                         )
-                            ->label('Urutan')
+                            ->label(
+                                'Urutan'
+                            )
                             ->numeric()
-                            ->default(0)
-                            ->minValue(0),
+                            ->default(
+                                0
+                            )
+                            ->minValue(
+                                0
+                            )
+                            ->required(),
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | ACTIVE
+                        |--------------------------------------------------------------------------
+                        */
 
                         Forms\Components\Toggle::make(
                             'is_active'
                         )
-                            ->label('Aktif')
-                            ->default(true),
+                            ->label(
+                                'Aktif'
+                            )
+                            ->default(
+                                true
+                            ),
+
                     ])
-                    ->columns(2),
+                    ->columns(
+                        2
+                    ),
+
             ]);
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | TABLE
+    |--------------------------------------------------------------------------
+    */
 
     public static function table(
         Table $table
@@ -135,153 +244,780 @@ class TrailGuideResource extends Resource
         return $table
             ->columns([
 
+                /*
+                |--------------------------------------------------------------------------
+                | MOUNTAIN
+                |--------------------------------------------------------------------------
+                */
+
                 Tables\Columns\TextColumn::make(
                     'hikingTrail.mountain.name'
                 )
-                    ->label('Gunung')
+                    ->label(
+                        'Gunung'
+                    )
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder(
+                        '-'
+                    ),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TRAIL
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\TextColumn::make(
                     'hikingTrail.name'
                 )
-                    ->label('Jalur')
+                    ->label(
+                        'Jalur'
+                    )
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->placeholder(
+                        '-'
+                    ),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TYPE
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\TextColumn::make(
                     'type'
                 )
-                    ->label('Jenis')
+                    ->label(
+                        'Jenis'
+                    )
                     ->badge()
                     ->formatStateUsing(
                         fn (
                             ?string $state
-                        ): string => match ($state) {
-                            'guide' => 'Panduan',
+                        ): string =>
+                            match (
+                                $state
+                            ) {
 
-                            'safety' => 'Keamanan',
+                                'guide' =>
+                                    'Panduan',
 
-                            'warning' => 'Peringatan',
+                                'safety' =>
+                                    'Keamanan',
 
-                            'equipment' => 'Perlengkapan',
+                                'warning' =>
+                                    'Peringatan',
 
-                            'emergency' => 'Darurat',
+                                'equipment' =>
+                                    'Perlengkapan',
 
-                            default => ucfirst(
-                                (string) $state
-                            ),
-                        }
+                                'emergency' =>
+                                    'Darurat',
+
+                                default =>
+                                    ucfirst(
+                                        (string)
+                                        $state
+                                    ),
+                            }
                     )
                     ->color(
                         fn (
                             ?string $state
-                        ): string => match ($state) {
-                            'guide' => 'info',
+                        ): string =>
+                            match (
+                                $state
+                            ) {
 
-                            'safety' => 'success',
+                                'guide' =>
+                                    'info',
 
-                            'warning' => 'warning',
+                                'safety' =>
+                                    'success',
 
-                            'equipment' => 'gray',
+                                'warning' =>
+                                    'warning',
 
-                            'emergency' => 'danger',
+                                'equipment' =>
+                                    'gray',
 
-                            default => 'gray',
-                        }
+                                'emergency' =>
+                                    'danger',
+
+                                default =>
+                                    'gray',
+                            }
                     ),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TITLE
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\TextColumn::make(
                     'title'
                 )
-                    ->label('Judul')
+                    ->label(
+                        'Judul'
+                    )
                     ->searchable()
-                    ->weight('bold'),
+                    ->weight(
+                        'bold'
+                    )
+                    ->limit(
+                        45
+                    ),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CONTENT
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\TextColumn::make(
                     'content'
                 )
-                    ->label('Isi')
-                    ->limit(55),
+                    ->label(
+                        'Isi'
+                    )
+                    ->limit(
+                        55
+                    )
+                    ->tooltip(
+                        fn (
+                            TrailGuide $record
+                        ): string =>
+                            $record->content
+                    ),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SORT
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\TextColumn::make(
                     'sort_order'
                 )
-                    ->label('Urutan')
+                    ->label(
+                        'Urutan'
+                    )
                     ->sortable(),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ACTIVE
+                |--------------------------------------------------------------------------
+                */
 
                 Tables\Columns\IconColumn::make(
                     'is_active'
                 )
-                    ->label('Aktif')
+                    ->label(
+                        'Aktif'
+                    )
                     ->boolean(),
+
             ])
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DEFAULT SORT
+            |--------------------------------------------------------------------------
+            */
 
             ->defaultSort(
                 'sort_order'
             )
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FILTERS
+            |--------------------------------------------------------------------------
+            */
 
             ->filters([
 
                 Tables\Filters\SelectFilter::make(
                     'type'
                 )
-                    ->label('Jenis')
+                    ->label(
+                        'Jenis'
+                    )
                     ->options([
-                        'guide' => 'Panduan Perjalanan',
 
-                        'safety' => 'Informasi Keamanan',
+                        'guide' =>
+                            'Panduan Perjalanan',
 
-                        'warning' => 'Peringatan',
+                        'safety' =>
+                            'Informasi Keamanan',
 
-                        'equipment' => 'Perlengkapan',
+                        'warning' =>
+                            'Peringatan',
 
-                        'emergency' => 'Informasi Darurat',
+                        'equipment' =>
+                            'Perlengkapan',
+
+                        'emergency' =>
+                            'Informasi Darurat',
+
                     ]),
+
 
                 Tables\Filters\SelectFilter::make(
                     'hiking_trail_id'
                 )
-                    ->label('Jalur')
+                    ->label(
+                        'Jalur'
+                    )
                     ->relationship(
-                        'hikingTrail',
-                        'name'
+                        name: 'hikingTrail',
+                        titleAttribute: 'name',
+                        modifyQueryUsing:
+                            function (
+                                Builder $query
+                            ): Builder {
+
+                                return static::filterTrailQueryByUser(
+                                    $query
+                                );
+                            }
                     )
                     ->searchable()
                     ->preload(),
+
             ])
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ACTIONS
+            |--------------------------------------------------------------------------
+            */
 
             ->actions([
-                Tables\Actions\ViewAction::make(),
 
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->label(
+                        'Lihat'
+                    )
+                    ->visible(
+                        fn (
+                            TrailGuide $record
+                        ): bool =>
+                            static::canView(
+                                $record
+                            )
+                    ),
+
+
+                Tables\Actions\EditAction::make()
+                    ->label(
+                        'Edit'
+                    )
+                    ->visible(
+                        fn (
+                            TrailGuide $record
+                        ): bool =>
+                            static::canEdit(
+                                $record
+                            )
+                    ),
+
             ])
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | BULK
+            |--------------------------------------------------------------------------
+            */
+
             ->bulkActions([
+
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(
+                            fn (): bool =>
+                                auth()
+                                    ->user()
+                                    ?->hasRole(
+                                        'admin'
+                                    )
+                                ?? false
+                        ),
+
                 ]),
+
             ]);
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NAVIGATION PERMISSION
+    |--------------------------------------------------------------------------
+    */
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAN VIEW ANY
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canViewAny(): bool
+    {
+        $user =
+            auth()->user();
+
+
+        if (
+            ! $user
+        ) {
+            return false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $user->hasRole(
+                'admin'
+            )
+        ) {
+            return true;
+        }
+
+
+        return $user->can(
+            'trail_guides.view'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAN CREATE
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canCreate(): bool
+    {
+        $user =
+            auth()->user();
+
+
+        if (
+            ! $user
+        ) {
+            return false;
+        }
+
+
+        if (
+            $user->hasRole(
+                'admin'
+            )
+        ) {
+            return true;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Pengelola harus punya permission DAN setidaknya satu lokasi.
+        |--------------------------------------------------------------------------
+        */
+
+        return
+            $user->can(
+                'trail_guides.create'
+            )
+            &&
+            $user
+                ->mountains()
+                ->exists();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAN VIEW RECORD
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canView(
+        $record
+    ): bool {
+        return static::canAccessRecord(
+            $record,
+            'trail_guides.view'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAN EDIT
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canEdit(
+        $record
+    ): bool {
+        return static::canAccessRecord(
+            $record,
+            'trail_guides.update'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CAN DELETE
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canDelete(
+        $record
+    ): bool {
+        return static::canAccessRecord(
+            $record,
+            'trail_guides.delete'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | BULK DELETE
+    |--------------------------------------------------------------------------
+    */
+
+    public static function canDeleteAny(): bool
+    {
+        $user =
+            auth()->user();
+
+
+        if (
+            ! $user
+        ) {
+            return false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Untuk keamanan, bulk delete hanya Admin.
+        |--------------------------------------------------------------------------
+        */
+
+        return $user->hasRole(
+            'admin'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK RECORD LOCATION ACCESS
+    |--------------------------------------------------------------------------
+    */
+
+    protected static function canAccessRecord(
+        $record,
+        string $permission
+    ): bool {
+        $user =
+            auth()->user();
+
+
+        if (
+            ! $user
+        ) {
+            return false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $user->hasRole(
+                'admin'
+            )
+        ) {
+            return true;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PERMISSION
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ! $user->can(
+                $permission
+            )
+        ) {
+            return false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET MOUNTAIN
+        |--------------------------------------------------------------------------
+        */
+
+        $mountainId =
+            $record
+                ->hikingTrail
+                ?->mountain_id;
+
+
+        if (
+            ! $mountainId
+        ) {
+            return false;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOCATION ASSIGNMENT
+        |--------------------------------------------------------------------------
+        */
+
+        return $user
+            ->mountains()
+            ->whereKey(
+                $mountainId
+            )
+            ->exists();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RESOURCE QUERY
+    |--------------------------------------------------------------------------
+    |
+    | Admin:
+    | semua panduan.
+    |
+    | Pengelola:
+    | hanya panduan pada gunung yang ditugaskan.
+    |--------------------------------------------------------------------------
+    */
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query =
+            parent::getEloquentQuery()
+                ->with([
+                    'hikingTrail.mountain',
+                ]);
+
+
+        $user =
+            auth()->user();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NO USER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ! $user
+        ) {
+            return $query
+                ->whereRaw(
+                    '1 = 0'
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $user->hasRole(
+                'admin'
+            )
+        ) {
+            return $query;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PENGELOLA LOKASI
+        |--------------------------------------------------------------------------
+        */
+
+        return $query
+            ->whereHas(
+                'hikingTrail.mountain.managers',
+                function (
+                    Builder $managerQuery
+                ) use (
+                    $user
+                ) {
+
+                    $managerQuery
+                        ->where(
+                            'users.id',
+                            $user->id
+                        );
+
+                }
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILTER TRAIL QUERY
+    |--------------------------------------------------------------------------
+    |
+    | Dipakai dropdown form dan filter table.
+    |--------------------------------------------------------------------------
+    */
+
+    protected static function filterTrailQueryByUser(
+        Builder $query
+    ): Builder {
+        $user =
+            auth()->user();
+
+
+        if (
+            ! $user
+        ) {
+            return $query
+                ->whereRaw(
+                    '1 = 0'
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $user->hasRole(
+                'admin'
+            )
+        ) {
+            return $query
+                ->with(
+                    'mountain'
+                )
+                ->orderBy(
+                    'name'
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PENGELOLA
+        |--------------------------------------------------------------------------
+        */
+
+        return $query
+            ->with(
+                'mountain'
+            )
+            ->whereHas(
+                'mountain.managers',
+                function (
+                    Builder $managerQuery
+                ) use (
+                    $user
+                ) {
+
+                    $managerQuery
+                        ->where(
+                            'users.id',
+                            $user->id
+                        );
+
+                }
+            )
+            ->orderBy(
+                'name'
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PAGES
+    |--------------------------------------------------------------------------
+    */
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTrailGuides::route(
-                '/'
-            ),
 
-            'create' => Pages\CreateTrailGuide::route(
-                '/create'
-            ),
+            'index' =>
+                Pages\ListTrailGuides::route(
+                    '/'
+                ),
 
-            'view' => Pages\ViewTrailGuide::route(
-                '/{record}'
-            ),
+            'create' =>
+                Pages\CreateTrailGuide::route(
+                    '/create'
+                ),
 
-            'edit' => Pages\EditTrailGuide::route(
-                '/{record}/edit'
-            ),
+            'view' =>
+                Pages\ViewTrailGuide::route(
+                    '/{record}'
+                ),
+
+            'edit' =>
+                Pages\EditTrailGuide::route(
+                    '/{record}/edit'
+                ),
+
         ];
     }
 }

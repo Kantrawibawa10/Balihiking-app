@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -11,9 +12,16 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        /*
+        |--------------------------------------------------------------------------
+        | CLEAR CACHE
+        |--------------------------------------------------------------------------
+        */
+
         app(
             PermissionRegistrar::class
         )->forgetCachedPermissions();
+
 
         /*
         |--------------------------------------------------------------------------
@@ -25,6 +33,14 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
+            | ADMIN PANEL
+            |--------------------------------------------------------------------------
+            */
+
+            'admin_panel.access',
+
+            /*
+            |--------------------------------------------------------------------------
             | DASHBOARD
             |--------------------------------------------------------------------------
             */
@@ -33,7 +49,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | MOUNTAINS
+            | GUNUNG
             |--------------------------------------------------------------------------
             */
 
@@ -44,7 +60,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | TRAILS
+            | JALUR PENDAKIAN
             |--------------------------------------------------------------------------
             */
 
@@ -55,7 +71,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | CHECKPOINTS
+            | CHECKPOINT
             |--------------------------------------------------------------------------
             */
 
@@ -66,16 +82,18 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | TRAIL REPORTS
+            | LAPORAN JALUR
             |--------------------------------------------------------------------------
             */
 
             'trail_reports.view',
+            'trail_reports.create',
             'trail_reports.update',
+            'trail_reports.delete',
 
             /*
             |--------------------------------------------------------------------------
-            | USER ROUTES
+            | AKTIVITAS PENDAKI
             |--------------------------------------------------------------------------
             */
 
@@ -92,7 +110,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | GUIDES
+            | PANDUAN
             |--------------------------------------------------------------------------
             */
 
@@ -103,7 +121,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | USERS
+            | USER MANAGEMENT
             |--------------------------------------------------------------------------
             */
 
@@ -114,7 +132,7 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | ROLE / PERMISSION
+            | ROLE MANAGEMENT
             |--------------------------------------------------------------------------
             */
 
@@ -122,18 +140,51 @@ class RolePermissionSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | ASSIGNMENT
+            | ASSIGNMENT LOKASI
             |--------------------------------------------------------------------------
             */
 
             'location_assignments.manage',
+
+            /*
+            |--------------------------------------------------------------------------
+            | PENDAKI FRONTEND
+            |--------------------------------------------------------------------------
+            */
+
+            'pendaki.dashboard.view',
+
+            'pendaki.mountains.view',
+
+            'pendaki.trails.view',
+
+            'pendaki.simaksi.view',
+            'pendaki.simaksi.create',
+
+            'pendaki.live_tracking.view',
+            'pendaki.live_tracking.start',
+            'pendaki.live_tracking.complete',
+
+            'pendaki.sos.send',
+
+            'pendaki.history.view',
+
+            'pendaki.profile.view',
+            'pendaki.profile.update',
         ];
 
 
-        foreach ($permissions as $permission) {
+        foreach (
+            $permissions
+            as
+            $permissionName
+        ) {
             Permission::firstOrCreate([
-                'name' => $permission,
-                'guard_name' => 'web',
+                'name' =>
+                    $permissionName,
+
+                'guard_name' =>
+                    'web',
             ]);
         }
 
@@ -144,60 +195,180 @@ class RolePermissionSeeder extends Seeder
         |--------------------------------------------------------------------------
         */
 
-        $admin = Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'web',
-        ]);
+        $admin =
+            Role::firstOrCreate([
+                'name' =>
+                    'admin',
+
+                'guard_name' =>
+                    'web',
+            ]);
+
 
         $admin->syncPermissions(
-            Permission::all()
+            Permission::query()
+                ->where(
+                    'guard_name',
+                    'web'
+                )
+                ->get()
         );
 
 
         /*
         |--------------------------------------------------------------------------
-        | LOCATION MANAGER
+        | PENGELOLA PENDAKIAN
         |--------------------------------------------------------------------------
         */
 
-        $locationManager =
+        $manager =
             Role::firstOrCreate([
-                'name' => 'pengelola_lokasi',
-                'guard_name' => 'web',
+                'name' =>
+                    'pengelola_lokasi',
+
+                'guard_name' =>
+                    'web',
             ]);
 
 
-        $locationManager
-            ->syncPermissions([
+        $manager->syncPermissions([
 
-                'dashboard.view',
+            'admin_panel.access',
 
-                'mountains.view',
-                'mountains.update',
+            'dashboard.view',
 
-                'trails.view',
-                'trails.create',
-                'trails.update',
-                'trails.delete',
+            /*
+            |--------------------------------------------------------------------------
+            | Gunung hanya lihat/edit lokasi sendiri.
+            |--------------------------------------------------------------------------
+            */
 
-                'checkpoints.view',
-                'checkpoints.create',
-                'checkpoints.update',
-                'checkpoints.delete',
+            'mountains.view',
+            'mountains.update',
 
-                'trail_reports.view',
-                'trail_reports.update',
+            /*
+            |--------------------------------------------------------------------------
+            | Jalur
+            |--------------------------------------------------------------------------
+            */
 
-                'user_routes.view',
-                'user_routes.complete',
+            'trails.view',
+            'trails.create',
+            'trails.update',
+            'trails.delete',
 
-                'live_tracking.view',
+            /*
+            |--------------------------------------------------------------------------
+            | Checkpoint
+            |--------------------------------------------------------------------------
+            */
 
-                'trail_guides.view',
-                'trail_guides.create',
-                'trail_guides.update',
-                'trail_guides.delete',
+            'checkpoints.view',
+            'checkpoints.create',
+            'checkpoints.update',
+            'checkpoints.delete',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Laporan
+            |--------------------------------------------------------------------------
+            */
+
+            'trail_reports.view',
+            'trail_reports.update',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Aktivitas Pendaki
+            |--------------------------------------------------------------------------
+            */
+
+            'user_routes.view',
+            'user_routes.complete',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Monitoring
+            |--------------------------------------------------------------------------
+            */
+
+            'live_tracking.view',
+
+            /*
+            |--------------------------------------------------------------------------
+            | Panduan
+            |--------------------------------------------------------------------------
+            */
+
+            'trail_guides.view',
+            'trail_guides.create',
+            'trail_guides.update',
+            'trail_guides.delete',
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PENDAKI
+        |--------------------------------------------------------------------------
+        */
+
+        $pendaki =
+            Role::firstOrCreate([
+                'name' =>
+                    'pendaki',
+
+                'guard_name' =>
+                    'web',
             ]);
+
+
+        $pendaki->syncPermissions([
+
+            'pendaki.dashboard.view',
+
+            'pendaki.mountains.view',
+
+            'pendaki.trails.view',
+
+            'pendaki.simaksi.view',
+            'pendaki.simaksi.create',
+
+            'pendaki.live_tracking.view',
+            'pendaki.live_tracking.start',
+            'pendaki.live_tracking.complete',
+
+            'pendaki.sos.send',
+
+            'pendaki.history.view',
+
+            'pendaki.profile.view',
+            'pendaki.profile.update',
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN USER YANG SUDAH ADA
+        |--------------------------------------------------------------------------
+        */
+
+        $adminUser =
+            User::query()
+                ->where(
+                    'email',
+                    'admin@gmail.com'
+                )
+                ->first();
+
+
+        if (
+            $adminUser
+        ) {
+            $adminUser->syncRoles([
+                'admin',
+            ]);
+        }
 
 
         app(

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable([
     'name',
@@ -27,7 +28,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
 
     /*
     |--------------------------------------------------------------------------
@@ -59,36 +60,13 @@ class User extends Authenticatable implements FilamentUser
     |
     */
 
-    public function canAccessPanel(Panel $panel): bool
-    {
-        /*
-         * Pastikan aturan ini hanya berlaku
-         * untuk panel dengan ID "admin".
-         */
-        if ($panel->getId() !== 'admin') {
-            return false;
-        }
-
-        return in_array(
-            $this->role,
-            [
-                'admin',
-                'pengelola_jalur',
-            ],
-            true
-        );
-    }
-
     /*
     |--------------------------------------------------------------------------
     | ROLE HELPERS
     |--------------------------------------------------------------------------
     */
 
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
+    
 
     public function isTrailManager(): bool
     {
@@ -167,4 +145,83 @@ class User extends Authenticatable implements FilamentUser
             ->whereKey($mountainId)
             ->exists();
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | MOUNTAIN ASSIGNMENT
+    |--------------------------------------------------------------------------
+    */
+
+    public function mountains(): BelongsToMany
+    {
+        return $this
+            ->belongsToMany(
+                Mountain::class,
+                'mountain_user'
+            )
+            ->withTimestamps();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILAMENT ADMIN ACCESS
+    |--------------------------------------------------------------------------
+    */
+
+    public function canAccessPanel(
+        Panel $panel
+    ): bool {
+        if (
+            $panel->getId()
+            !==
+            'admin'
+        ) {
+            return false;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Admin selalu boleh masuk.
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $this->hasRole(
+                'admin'
+            )
+        ) {
+            return true;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Role lain wajib mempunyai permission ini.
+        |--------------------------------------------------------------------------
+        */
+
+        return $this->can(
+            'admin_panel.access'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(
+            'admin'
+        );
+    }
+
+    public function isLocationManager(): bool
+    {
+        return $this->hasRole(
+            'pengelola_lokasi'
+        );
+    }
+
 }
