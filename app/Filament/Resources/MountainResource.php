@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MountainResource extends Resource
 {
@@ -19,6 +20,126 @@ class MountainResource extends Resource
     protected static ?string $navigationLabel = 'Data Gunung';
 
     protected static ?int $navigationSort = 1;
+
+    /*
+|--------------------------------------------------------------------------
+| PERMISSIONS
+|--------------------------------------------------------------------------
+*/
+
+    public static function canViewAny(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('mountains.view')
+            ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('mountains.create')
+            ?? false;
+    }
+
+    public static function canView($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (! $user->can('mountains.view')) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        return $user
+            ->mountains()
+            ->whereKey($record->id)
+            ->exists();
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (! $user->can('mountains.update')) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        return $user
+            ->mountains()
+            ->whereKey($record->id)
+            ->exists();
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Saya sarankan hapus Gunung hanya Admin.
+        |--------------------------------------------------------------------------
+        */
+
+        return $user->hasRole('admin')
+            && $user->can('mountains.delete');
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | LOCATION SCOPE
+    |--------------------------------------------------------------------------
+    */
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'managers',
+            function (Builder $managerQuery) use ($user) {
+                $managerQuery->where(
+                    'users.id',
+                    $user->id
+                );
+            }
+        );
+    }
 
     public static function form(Form $form): Form
     {

@@ -14,6 +14,7 @@ use App\Http\Controllers\Pendaki\RiwayatController;
 use App\Http\Controllers\Pendaki\SimaksiController;
 use App\Http\Controllers\Pendaki\TrailController;
 use App\Http\Controllers\Pendaki\TrailReportController;
+use App\Http\Controllers\Admin\LiveTrackingDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/debug-auth', function () {
@@ -117,6 +118,20 @@ Route::get(
 )
     ->middleware('auth')
     ->name('api.live-tracking-data');
+
+Route::middleware([
+    'auth',
+])
+    ->get(
+        '/admin/live-tracking-data',
+        [
+            LiveTrackingDataController::class,
+            'index',
+        ]
+    )
+    ->name(
+        'admin.live-tracking.data'
+    );
 
 /*
 |--------------------------------------------------------------------------

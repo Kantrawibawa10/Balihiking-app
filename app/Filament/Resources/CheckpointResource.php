@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CheckpointResource extends Resource
 {
@@ -19,6 +20,110 @@ class CheckpointResource extends Resource
     protected static ?string $navigationLabel = 'Pos Checkpoint';
 
     protected static ?int $navigationSort = 3;
+
+    public static function canViewAny(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('checkpoints.view')
+            ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('checkpoints.create')
+            ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canView($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'checkpoints.view'
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'checkpoints.update'
+        );
+    }
+
+    public static function canDelete($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'checkpoints.delete'
+        );
+    }
+
+    protected static function canAccessRecord(
+        $record,
+        string $permission
+    ): bool {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (! $user->can($permission)) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        $mountainId =
+            $record
+                ->hikingTrail
+                ?->mountain_id;
+
+        if (! $mountainId) {
+            return false;
+        }
+
+        return $user
+            ->mountains()
+            ->whereKey($mountainId)
+            ->exists();
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'hikingTrail.mountain.managers',
+            function (Builder $managerQuery) use ($user) {
+
+                $managerQuery->where(
+                    'users.id',
+                    $user->id
+                );
+            }
+        );
+    }
 
     public static function form(Form $form): Form
     {
@@ -166,13 +271,13 @@ class CheckpointResource extends Resource
 
             // Filter Data Berdasarkan Jalur & Tipe Pos
             ->filters([
-            Tables\Filters\SelectFilter::make('hiking_trail_id')
+                Tables\Filters\SelectFilter::make('hiking_trail_id')
                     ->label('Berdasarkan Jalur')
                     ->relationship('hikingTrail', 'name')
                     ->searchable()
                     ->preload(),
 
-            Tables\Filters\SelectFilter::make('type')
+                Tables\Filters\SelectFilter::make('type')
                     ->label('Berdasarkan Tipe Pos')
                     ->options([
                         'basecamp' => 'Basecamp',
@@ -182,20 +287,20 @@ class CheckpointResource extends Resource
                         'campsite' => 'Area Camp',
                         'peak' => 'Puncak',
                     ]),
-        ])
+            ])
 
             // Tombol Aksi Baris
             ->actions([
-            Tables\Actions\EditAction::make(),
-            Tables\Actions\DeleteAction::make(),
-        ])
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
 
             // Aksi Masal
             ->bulkActions([
-            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-            ]),
-        ]);
+                ]),
+            ]);
     }
 
     public static function getRelations(): array

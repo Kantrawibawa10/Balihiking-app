@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TrailGuideResource extends Resource
 {
@@ -31,6 +32,27 @@ class TrailGuideResource extends Resource
         'Master Data';
 
     protected static ?int $navigationSort = 4;
+
+    public static function canViewAny(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('trail_guides.view')
+            ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('trail_guides.create')
+            ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function form(
         Form $form
@@ -60,20 +82,15 @@ class TrailGuideResource extends Resource
                         )
                             ->label('Jenis Informasi')
                             ->options([
-                                'guide' =>
-                                    'Panduan Perjalanan',
+                                'guide' => 'Panduan Perjalanan',
 
-                                'safety' =>
-                                    'Informasi Keamanan',
+                                'safety' => 'Informasi Keamanan',
 
-                                'warning' =>
-                                    'Peringatan',
+                                'warning' => 'Peringatan',
 
-                                'equipment' =>
-                                    'Perlengkapan',
+                                'equipment' => 'Perlengkapan',
 
-                                'emergency' =>
-                                    'Informasi Darurat',
+                                'emergency' => 'Informasi Darurat',
                             ])
                             ->required()
                             ->native(false),
@@ -140,52 +157,38 @@ class TrailGuideResource extends Resource
                     ->formatStateUsing(
                         fn (
                             ?string $state
-                        ): string =>
-                            match ($state) {
-                                'guide' =>
-                                    'Panduan',
+                        ): string => match ($state) {
+                            'guide' => 'Panduan',
 
-                                'safety' =>
-                                    'Keamanan',
+                            'safety' => 'Keamanan',
 
-                                'warning' =>
-                                    'Peringatan',
+                            'warning' => 'Peringatan',
 
-                                'equipment' =>
-                                    'Perlengkapan',
+                            'equipment' => 'Perlengkapan',
 
-                                'emergency' =>
-                                    'Darurat',
+                            'emergency' => 'Darurat',
 
-                                default =>
-                                    ucfirst(
-                                        (string) $state
-                                    ),
-                            }
+                            default => ucfirst(
+                                (string) $state
+                            ),
+                        }
                     )
                     ->color(
                         fn (
                             ?string $state
-                        ): string =>
-                            match ($state) {
-                                'guide' =>
-                                    'info',
+                        ): string => match ($state) {
+                            'guide' => 'info',
 
-                                'safety' =>
-                                    'success',
+                            'safety' => 'success',
 
-                                'warning' =>
-                                    'warning',
+                            'warning' => 'warning',
 
-                                'equipment' =>
-                                    'gray',
+                            'equipment' => 'gray',
 
-                                'emergency' =>
-                                    'danger',
+                            'emergency' => 'danger',
 
-                                default =>
-                                    'gray',
-                            }
+                            default => 'gray',
+                        }
                     ),
 
                 Tables\Columns\TextColumn::make(
@@ -225,20 +228,15 @@ class TrailGuideResource extends Resource
                 )
                     ->label('Jenis')
                     ->options([
-                        'guide' =>
-                            'Panduan Perjalanan',
+                        'guide' => 'Panduan Perjalanan',
 
-                        'safety' =>
-                            'Informasi Keamanan',
+                        'safety' => 'Informasi Keamanan',
 
-                        'warning' =>
-                            'Peringatan',
+                        'warning' => 'Peringatan',
 
-                        'equipment' =>
-                            'Perlengkapan',
+                        'equipment' => 'Perlengkapan',
 
-                        'emergency' =>
-                            'Informasi Darurat',
+                        'emergency' => 'Informasi Darurat',
                     ]),
 
                 Tables\Filters\SelectFilter::make(
@@ -269,25 +267,21 @@ class TrailGuideResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' =>
-                Pages\ListTrailGuides::route(
-                    '/'
-                ),
+            'index' => Pages\ListTrailGuides::route(
+                '/'
+            ),
 
-            'create' =>
-                Pages\CreateTrailGuide::route(
-                    '/create'
-                ),
+            'create' => Pages\CreateTrailGuide::route(
+                '/create'
+            ),
 
-            'view' =>
-                Pages\ViewTrailGuide::route(
-                    '/{record}'
-                ),
+            'view' => Pages\ViewTrailGuide::route(
+                '/{record}'
+            ),
 
-            'edit' =>
-                Pages\EditTrailGuide::route(
-                    '/{record}/edit'
-                ),
+            'edit' => Pages\EditTrailGuide::route(
+                '/{record}/edit'
+            ),
         ];
     }
 }

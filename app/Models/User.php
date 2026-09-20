@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name',
@@ -26,7 +27,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /*
     |--------------------------------------------------------------------------
@@ -146,5 +147,24 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(
             IdentityDocument::class
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | MOUNTAIN ACCESS
+    |--------------------------------------------------------------------------
+    */
+
+    public function canAccessMountain(
+        int $mountainId
+    ): bool {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this
+            ->mountains()
+            ->whereKey($mountainId)
+            ->exists();
     }
 }

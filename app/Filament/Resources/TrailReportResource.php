@@ -48,6 +48,83 @@ class TrailReportResource extends Resource
     |
     */
 
+    public static function canViewAny(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('trail_reports.view')
+            ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (
+            ! $user->can(
+                'trail_reports.update'
+            )
+        ) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        $mountainId =
+            $record
+                ->hikingTrail
+                ?->mountain_id;
+
+        return $mountainId
+            &&
+            $user
+                ->mountains()
+                ->whereKey($mountainId)
+                ->exists();
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'hikingTrail.mountain.managers',
+            function (Builder $managerQuery) use ($user) {
+
+                $managerQuery->where(
+                    'users.id',
+                    $user->id
+                );
+            }
+        );
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -100,8 +177,7 @@ class TrailReportResource extends Resource
                         Forms\Components\TextInput::make('status')
                             ->label('Kondisi Jalur')
                             ->formatStateUsing(
-                                fn (?string $state): string =>
-                                    self::statusLabel($state)
+                                fn (?string $state): string => self::statusLabel($state)
                             )
                             ->disabled()
                             ->dehydrated(false),
@@ -159,11 +235,10 @@ class TrailReportResource extends Resource
             */
 
             ->modifyQueryUsing(
-                fn (Builder $query): Builder =>
-                    $query->with([
-                        'user',
-                        'hikingTrail.mountain',
-                    ])
+                fn (Builder $query): Builder => $query->with([
+                    'user',
+                    'hikingTrail.mountain',
+                ])
             )
 
             /*
@@ -205,12 +280,10 @@ class TrailReportResource extends Resource
                     ->label('Kondisi')
                     ->badge()
                     ->formatStateUsing(
-                        fn (?string $state): string =>
-                            self::statusLabel($state)
+                        fn (?string $state): string => self::statusLabel($state)
                     )
                     ->color(
-                        fn (?string $state): string =>
-                            self::statusColor($state)
+                        fn (?string $state): string => self::statusColor($state)
                     ),
 
                 Tables\Columns\TextColumn::make(
@@ -222,8 +295,7 @@ class TrailReportResource extends Resource
                     ->tooltip(
                         fn (
                             TrailReport $record
-                        ): ?string =>
-                            $record->condition_note
+                        ): ?string => $record->condition_note
                     ),
 
                 Tables\Columns\TextColumn::make(
@@ -261,29 +333,21 @@ class TrailReportResource extends Resource
                 )
                     ->label('Kondisi Jalur')
                     ->options([
-                        'aman' =>
-                            'Aman',
+                        'aman' => 'Aman',
 
-                        'licin' =>
-                            'Licin',
+                        'licin' => 'Licin',
 
-                        'berlumpur' =>
-                            'Berlumpur',
+                        'berlumpur' => 'Berlumpur',
 
-                        'longsor' =>
-                            'Longsor',
+                        'longsor' => 'Longsor',
 
-                        'pohon_tumbang' =>
-                            'Pohon Tumbang',
+                        'pohon_tumbang' => 'Pohon Tumbang',
 
-                        'jalur_tertutup' =>
-                            'Jalur Tertutup',
+                        'jalur_tertutup' => 'Jalur Tertutup',
 
-                        'jembatan_rusak' =>
-                            'Jembatan Rusak',
+                        'jembatan_rusak' => 'Jembatan Rusak',
 
-                        'lainnya' =>
-                            'Lainnya',
+                        'lainnya' => 'Lainnya',
                     ]),
 
                 Tables\Filters\SelectFilter::make(
@@ -333,32 +397,23 @@ class TrailReportResource extends Resource
         ?string $status
     ): string {
         return match ($status) {
-            'aman' =>
-                'Aman',
+            'aman' => 'Aman',
 
-            'licin' =>
-                'Licin',
+            'licin' => 'Licin',
 
-            'berlumpur' =>
-                'Berlumpur',
+            'berlumpur' => 'Berlumpur',
 
-            'longsor' =>
-                'Longsor',
+            'longsor' => 'Longsor',
 
-            'pohon_tumbang' =>
-                'Pohon Tumbang',
+            'pohon_tumbang' => 'Pohon Tumbang',
 
-            'jalur_tertutup' =>
-                'Jalur Tertutup',
+            'jalur_tertutup' => 'Jalur Tertutup',
 
-            'jembatan_rusak' =>
-                'Jembatan Rusak',
+            'jembatan_rusak' => 'Jembatan Rusak',
 
-            'lainnya' =>
-                'Lainnya',
+            'lainnya' => 'Lainnya',
 
-            default =>
-                $status
+            default => $status
                     ? ucfirst(
                         str_replace(
                             '_',
@@ -380,55 +435,18 @@ class TrailReportResource extends Resource
         ?string $status
     ): string {
         return match ($status) {
-            'aman' =>
-                'success',
+            'aman' => 'success',
 
             'licin',
             'berlumpur',
-            'pohon_tumbang' =>
-                'warning',
+            'pohon_tumbang' => 'warning',
 
             'longsor',
             'jalur_tertutup',
-            'jembatan_rusak' =>
-                'danger',
+            'jembatan_rusak' => 'danger',
 
-            default =>
-                'gray',
+            default => 'gray',
         };
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PERMISSION
-    |--------------------------------------------------------------------------
-    |
-    | Laporan berasal dari pendaki.
-    |
-    | Tidak boleh dibuat, diedit atau dihapus sembarangan melalui admin.
-    |
-    */
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
-
-    public static function canEdit(
-        $record
-    ): bool {
-        return false;
-    }
-
-    public static function canDelete(
-        $record
-    ): bool {
-        return false;
-    }
-
-    public static function canDeleteAny(): bool
-    {
-        return false;
     }
 
     /*
@@ -441,15 +459,13 @@ class TrailReportResource extends Resource
     {
         return [
 
-            'index' =>
-                Pages\ListTrailReports::route(
-                    '/'
-                ),
+            'index' => Pages\ListTrailReports::route(
+                '/'
+            ),
 
-            'view' =>
-                Pages\ViewTrailReport::route(
-                    '/{record}'
-                ),
+            'view' => Pages\ViewTrailReport::route(
+                '/{record}'
+            ),
         ];
     }
 }

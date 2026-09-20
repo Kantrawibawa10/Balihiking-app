@@ -11,6 +11,7 @@ use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class HikingTrailResource extends Resource
 {
@@ -21,6 +22,120 @@ class HikingTrailResource extends Resource
     protected static ?string $navigationLabel = 'Jalur Pendakian';
 
     protected static ?int $navigationSort = 2;
+
+    /*
+|--------------------------------------------------------------------------
+| PERMISSIONS
+|--------------------------------------------------------------------------
+*/
+
+    public static function canViewAny(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('trails.view')
+            ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()
+            ->user()
+            ?->can('trails.create')
+            ?? false;
+    }
+
+    public static function canView($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'trails.view'
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'trails.update'
+        );
+    }
+
+    public static function canDelete($record): bool
+    {
+        return static::canAccessRecord(
+            $record,
+            'trails.delete'
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | RECORD ACCESS
+    |--------------------------------------------------------------------------
+    */
+
+    protected static function canAccessRecord(
+        $record,
+        string $permission
+    ): bool {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if (! $user->can($permission)) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        return $user
+            ->mountains()
+            ->whereKey(
+                $record->mountain_id
+            )
+            ->exists();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | LOCATION SCOPE
+    |--------------------------------------------------------------------------
+    */
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        if (! $user) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->hasRole('admin')) {
+            return $query;
+        }
+
+        return $query->whereHas(
+            'mountain.managers',
+            function (Builder $managerQuery) use ($user) {
+                $managerQuery->where(
+                    'users.id',
+                    $user->id
+                );
+            }
+        );
+    }
 
     public static function form(Form $form): Form
     {
@@ -201,24 +316,24 @@ class HikingTrailResource extends Resource
 
             // Filter Data Berdasarkan Status & Gunung
             ->filters([
-            Tables\Filters\SelectFilter::make('status')
+                Tables\Filters\SelectFilter::make('status')
                     ->label('Status Jalur')
                     ->options([
                         'open' => 'Buka (Open)',
                         'closed' => 'Tutup (Closed)',
                         'maintenance' => 'Perbaikan',
                     ]),
-            Tables\Filters\SelectFilter::make('mountain_id')
+                Tables\Filters\SelectFilter::make('mountain_id')
                     ->label('Berdasarkan Gunung')
                     ->relationship('mountain', 'name')
                     ->searchable()
                     ->preload(),
-        ])
+            ])
 
             // Aksi Baris Tabel
             ->actions([
-            // Action Pratinjau Pendaki (Modal Preview)
-            Tables\Actions\Action::make('preview')
+                // Action Pratinjau Pendaki (Modal Preview)
+                Tables\Actions\Action::make('preview')
                     ->label('Pratinjau')
                     ->icon('heroicon-o-eye')
                     ->color('info')
@@ -231,16 +346,16 @@ class HikingTrailResource extends Resource
                         ['record' => $record->load(['mountain', 'checkpoints'])]
                     )),
 
-            Tables\Actions\EditAction::make(),
-            Tables\Actions\DeleteAction::make(),
-        ])
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
+            ])
 
             // Aksi Masal
             ->bulkActions([
-            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-            ]),
-        ]);
+                ]),
+            ]);
     }
 
     public static function getRelations(): array
