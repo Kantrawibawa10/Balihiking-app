@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Pages\LiveTracking;
+use App\Http\Controllers\Admin\LiveTrackingDataController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Auth\PendakiAuthController;
 use App\Http\Controllers\LandingController;
@@ -14,7 +15,6 @@ use App\Http\Controllers\Pendaki\RiwayatController;
 use App\Http\Controllers\Pendaki\SimaksiController;
 use App\Http\Controllers\Pendaki\TrailController;
 use App\Http\Controllers\Pendaki\TrailReportController;
-use App\Http\Controllers\Admin\LiveTrackingDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/debug-auth', function () {
@@ -174,9 +174,10 @@ Route::middleware('auth')
                 MountainController::class,
                 'show',
             ]
-        )->name(
-            'mountains.show'
-        );
+        )
+            ->name(
+                'mountain.show'
+            );
 
         Route::get(
             '/gunung/{mountain}/weather',
@@ -184,9 +185,10 @@ Route::middleware('auth')
                 MountainController::class,
                 'weather',
             ]
-        )->name(
-            'mountains.weather'
-        );
+        )
+            ->name(
+                'mountain.weather'
+            );
 
         /*
         |--------------------------------------------------------------------------

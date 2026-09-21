@@ -6,31 +6,32 @@ use App\Http\Controllers\Controller;
 use App\Models\Mountain;
 use App\Services\MountainWeatherService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
+use Throwable;
 
 class MountainController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | CONSTRUCTOR
+    | WEATHER SERVICE
     |--------------------------------------------------------------------------
     */
 
     public function __construct(
-        private readonly MountainWeatherService $weatherService
+        protected MountainWeatherService $weatherService
     ) {
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | DETAIL GUNUNG DAN DAFTAR JALUR
+    | SHOW MOUNTAIN
     |--------------------------------------------------------------------------
     */
 
     public function show(
         Mountain $mountain
-    ) {
-
+    ): View {
         /*
         |--------------------------------------------------------------------------
         | LOAD ACTIVE TRAILS
@@ -38,8 +39,9 @@ class MountainController extends Controller
         */
 
         $mountain->load([
-            'hikingTrails' => function ($query) {
-
+            'hikingTrails' => function (
+                $query
+            ) {
                 $query
                     ->where(
                         'is_active',
@@ -51,8 +53,9 @@ class MountainController extends Controller
                     )
 
                     ->with([
-                        'checkpoints' => function ($checkpointQuery) {
-
+                        'checkpoints' => function (
+                            $checkpointQuery
+                        ) {
                             $checkpointQuery
                                 ->select([
                                     'id',
@@ -78,28 +81,21 @@ class MountainController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | WEATHER
+        | Jangan paksa weather request pada render awal.
         |--------------------------------------------------------------------------
-        */
-
-        $weather =
-            $this->weatherService
-                ->getForecast(
-                    $mountain
-                );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VIEW
+        |
+        | Frontend akan mengambilnya melalui endpoint AJAX:
+        |
+        | /pendaki/gunung/{mountain}/weather
+        |
+        | Jadi detail gunung tetap cepat dibuka.
         |--------------------------------------------------------------------------
         */
 
         return view(
             'pendaki.mountains.show',
             compact(
-                'mountain',
-                'weather'
+                'mountain'
             )
         );
     }
@@ -107,28 +103,80 @@ class MountainController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | WEATHER API INTERNAL
-    |--------------------------------------------------------------------------
-    |
-    | Endpoint:
-    |
-    | /pendaki/gunung/{mountain}/weather
-    |
+    | WEATHER
     |--------------------------------------------------------------------------
     */
 
     public function weather(
         Mountain $mountain
     ): JsonResponse {
+        try {
+            /*
+            |--------------------------------------------------------------------------
+            | Tombol "Perbarui"
+            |--------------------------------------------------------------------------
+            |
+            | ?refresh=1 akan memaksa request baru.
+            |--------------------------------------------------------------------------
+            */
 
-        $weather =
-            $this->weatherService
-                ->getForecast(
-                    $mountain
+            $forceRefresh =
+                request()->boolean(
+                    'refresh'
                 );
 
 
-        if (!$weather) {
+            $weather =
+                $this
+                    ->weatherService
+                    ->getWeather(
+                        $mountain,
+                        $forceRefresh
+                    );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | WEATHER UNAVAILABLE
+            |--------------------------------------------------------------------------
+            */
+
+            if (! $weather) {
+                return response()->json(
+                    [
+                        'success' =>
+                            false,
+
+                        'message' =>
+                            'Perkiraan cuaca belum tersedia untuk gunung ini.',
+
+                        'debug_hint' =>
+                            app()->isLocal()
+                                ?
+                                'Periksa storage/logs/laravel.log untuk detail kegagalan geocoding/weather API.'
+                                :
+                                null,
+                    ],
+                    503
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SUCCESS
+            |--------------------------------------------------------------------------
+            */
+
+            return response()->json(
+                $weather
+            );
+
+        } catch (Throwable $exception) {
+            report(
+                $exception
+            );
+
 
             return response()->json(
                 [
@@ -136,19 +184,25 @@ class MountainController extends Controller
                         false,
 
                     'message' =>
-                        'Perkiraan cuaca belum tersedia untuk gunung ini.',
+                        'Terjadi kendala saat mengambil prakiraan cuaca.',
+
+                    'debug' =>
+                        app()->isLocal()
+                            ?
+                            [
+                                'exception' =>
+                                    get_class(
+                                        $exception
+                                    ),
+
+                                'message' =>
+                                    $exception->getMessage(),
+                            ]
+                            :
+                            null,
                 ],
                 503
             );
         }
-
-
-        return response()->json([
-            'success' =>
-                true,
-
-            'weather' =>
-                $weather,
-        ]);
     }
 }
