@@ -2556,34 +2556,36 @@
     {{-- ========================================================= --}}
 
     <script>
-
         /*
         |--------------------------------------------------------------------------
-        | PAGE CACHE CONFIG
+        | PAGE + WEATHER CONFIG
         |--------------------------------------------------------------------------
         */
 
         const MOUNTAIN_CACHE =
-            'balihiking-mountain-pages-v4';
-
+            'balihiking-mountain-pages-v5';
 
         const MOUNTAIN_CACHE_TIME_KEY =
             'balihiking_mountain_{{ $mountain->id }}_cache_time';
 
+        const WEATHER_STORAGE_KEY =
+            'balihiking_weather_{{ $mountain->id }}';
 
-        const dashboardUrl =
+        const WEATHER_STORAGE_TIME_KEY =
+            'balihiking_weather_{{ $mountain->id }}_time';
+
+        const weatherEndpoint =
             @json(
                 route(
-                    'pendaki.dashboard'
+                    'pendaki.mountain.weather',
+                    $mountain
                 )
             );
-
 
         const mountainCoverUrl =
             @json(
                 $mountain->cover_image_url
             );
-
 
         const trailUrls =
             @json(
@@ -2599,42 +2601,8 @@
                     ->values()
             );
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | WEATHER CONFIG
-        |--------------------------------------------------------------------------
-        */
-
-        const WEATHER_STORAGE_KEY =
-            'balihiking_weather_{{ $mountain->id }}';
-
-
-        const WEATHER_STORAGE_TIME_KEY =
-            'balihiking_weather_{{ $mountain->id }}_time';
-
-
-        const weatherEndpoint =
-            @json(
-                route(
-                    'pendaki.mountain.weather',
-                    $mountain
-                )
-            );
-
-
-        const initialWeather =
-            @json(
-                $weather
-                ??
-                null
-            );
-
-
-        let toastTimer =
-            null;
-
+        let toastTimer = null;
+        let weatherRequestRunning = false;
 
 
         /*
@@ -2644,46 +2612,25 @@
         */
 
         const appBody =
-            document.getElementById(
-                'appBody'
-            );
-
+            document.getElementById('appBody');
 
         const networkStatus =
-            document.getElementById(
-                'networkStatus'
-            );
-
+            document.getElementById('networkStatus');
 
         const networkStatusText =
-            document.getElementById(
-                'networkStatusText'
-            );
-
+            document.getElementById('networkStatusText');
 
         const offlineBadge =
-            document.getElementById(
-                'offlineBadge'
-            );
-
+            document.getElementById('offlineBadge');
 
         const offlineInformation =
-            document.getElementById(
-                'offlineInformation'
-            );
-
+            document.getElementById('offlineInformation');
 
         const cacheTimestampContainer =
-            document.getElementById(
-                'cacheTimestampContainer'
-            );
-
+            document.getElementById('cacheTimestampContainer');
 
         const cacheTimestamp =
-            document.getElementById(
-                'cacheTimestamp'
-            );
-
+            document.getElementById('cacheTimestamp');
 
 
         /*
@@ -2695,37 +2642,38 @@
         document.addEventListener(
             'DOMContentLoaded',
             async function () {
-
                 updateNetworkUI();
-
+                updateWeatherNetworkUI();
                 showCacheTimestamp();
-
                 setupOfflineLinks();
+                setupWeatherButton();
 
-                setupWeather();
+                const cachedWeather =
+                    loadWeatherFromDevice();
 
-
-                if (
-                    navigator.onLine
-                ) {
-
-                    await cacheCurrentMountainPage();
-
-                    await cacheLocalAssets();
-
-                    await cacheMountainCover();
-
-                    await prefetchTrailPages();
-
-                    await refreshWeather(
-                        false
+                if (cachedWeather) {
+                    renderWeather(
+                        cachedWeather,
+                        !navigator.onLine
                     );
-
+                } else if (!navigator.onLine) {
+                    renderWeatherUnavailable(
+                        'Perangkat sedang offline dan belum mempunyai data cuaca tersimpan.'
+                    );
                 }
 
+                if (navigator.onLine) {
+                    await Promise.allSettled([
+                        cacheCurrentMountainPage(),
+                        cacheLocalAssets(),
+                        cacheMountainCover(),
+                        prefetchTrailPages(),
+                    ]);
+
+                    await refreshWeather(false, false);
+                }
             }
         );
-
 
 
         /*
@@ -2734,58 +2682,40 @@
         |--------------------------------------------------------------------------
         */
 
-        if (
-            'serviceWorker'
-            in navigator
-        ) {
-
+        if ('serviceWorker' in navigator) {
             window.addEventListener(
                 'load',
                 async function () {
-
                     try {
-
                         const registration =
                             await navigator
                                 .serviceWorker
                                 .register(
                                     '/sw.js',
                                     {
-                                        scope:
-                                            '/'
+                                        scope: '/',
                                     }
                                 );
-
 
                         console.log(
                             '[BaliHiking Gunung] Service Worker aktif:',
                             registration.scope
                         );
 
-
                         registration
                             .update()
                             .catch(
                                 function () {}
                             );
-
-
-                    } catch (
-                        error
-                    ) {
-
+                    } catch (error) {
                         console.error(
                             '[BaliHiking Gunung] Service Worker gagal:',
                             error
                         );
-
                     }
-
                 }
             );
-
         }
-
 
 
         /*
@@ -2797,66 +2727,51 @@
         window.addEventListener(
             'online',
             async function () {
-
                 updateNetworkUI();
-
                 updateWeatherNetworkUI();
-
 
                 showToast(
                     'Internet kembali aktif',
                     'BaliHiking sedang memperbarui informasi gunung, jalur, dan cuaca.'
                 );
 
+                await Promise.allSettled([
+                    cacheCurrentMountainPage(),
+                    cacheMountainCover(),
+                    prefetchTrailPages(),
+                ]);
 
-                await cacheCurrentMountainPage();
-
-                await cacheMountainCover();
-
-                await prefetchTrailPages();
-
-                await refreshWeather(
-                    false
-                );
-
+                await refreshWeather(false, false);
             }
         );
-
 
         window.addEventListener(
             'offline',
             function () {
-
                 updateNetworkUI();
-
                 updateWeatherNetworkUI();
-
 
                 const savedWeather =
                     loadWeatherFromDevice();
 
-
-                if (
-                    savedWeather
-                ) {
-
+                if (savedWeather) {
                     renderWeather(
                         savedWeather,
                         true
                     );
-
+                } else {
+                    renderWeatherUnavailable(
+                        'Perangkat sedang offline dan data cuaca untuk gunung ini belum pernah disimpan.'
+                    );
                 }
-
 
                 showToast(
                     'Mode Offline',
                     'Informasi gunung, jalur dan cuaca terakhir yang tersimpan tetap dapat digunakan.',
                     'warning'
                 );
-
             }
         );
-
 
 
         /*
@@ -2866,121 +2781,46 @@
         */
 
         function updateNetworkUI() {
+            if (navigator.onLine) {
+                appBody?.classList.remove('is-offline');
 
-            if (
-                navigator.onLine
-            ) {
+                networkStatus?.classList.remove('offline');
+                networkStatus?.classList.add('online', 'show');
 
-                appBody
-                    .classList
-                    .remove(
-                        'is-offline'
-                    );
+                if (networkStatusText) {
+                    networkStatusText.innerText = 'Online';
+                }
 
-
-                networkStatus
-                    .classList
-                    .remove(
-                        'offline'
-                    );
-
-
-                networkStatus
-                    .classList
-                    .add(
-                        'online'
-                    );
-
-
-                networkStatusText
-                    .innerText =
-                        'Online';
-
-
-                offlineBadge
-                    .classList
-                    .remove(
-                        'show'
-                    );
-
-
-                offlineInformation
-                    .classList
-                    .remove(
-                        'show'
-                    );
-
+                offlineBadge?.classList.remove('show');
+                offlineInformation?.classList.remove('show');
 
                 setTimeout(
                     function () {
-
-                        if (
-                            navigator.onLine
-                        ) {
-
-                            networkStatus
-                                .classList
-                                .remove(
-                                    'show'
-                                );
-
+                        if (navigator.onLine) {
+                            networkStatus?.classList.remove('show');
                         }
-
                     },
                     1600
                 );
 
-
-            } else {
-
-
-                appBody
-                    .classList
-                    .add(
-                        'is-offline'
-                    );
-
-
-                networkStatus
-                    .classList
-                    .remove(
-                        'online'
-                    );
-
-
-                networkStatus
-                    .classList
-                    .add(
-                        'offline',
-                        'show'
-                    );
-
-
-                networkStatusText
-                    .innerText =
-                        'Offline · data gunung tersimpan';
-
-
-                offlineBadge
-                    .classList
-                    .add(
-                        'show'
-                    );
-
-
-                offlineInformation
-                    .classList
-                    .add(
-                        'show'
-                    );
-
-
-                showCacheTimestamp();
-
+                return;
             }
 
-        }
+            appBody?.classList.add('is-offline');
 
+            networkStatus?.classList.remove('online');
+            networkStatus?.classList.add('offline', 'show');
+
+            if (networkStatusText) {
+                networkStatusText.innerText =
+                    'Offline · data gunung tersimpan';
+            }
+
+            offlineBadge?.classList.add('show');
+            offlineInformation?.classList.add('show');
+
+            showCacheTimestamp();
+        }
 
 
         /*
@@ -2990,92 +2830,57 @@
         */
 
         async function cacheCurrentMountainPage() {
-
             if (
                 !navigator.onLine
                 ||
                 !('caches' in window)
             ) {
-
                 return;
-
             }
 
-
             try {
-
                 const cache =
                     await caches.open(
                         MOUNTAIN_CACHE
                     );
 
-
                 const response =
                     await fetch(
                         window.location.href,
                         {
-                            method:
-                                'GET',
-
-                            credentials:
-                                'same-origin',
-
-                            cache:
-                                'no-store',
-
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            cache: 'no-store',
                             headers: {
-
-                                'X-BaliHiking-Cache':
-                                    'mountain'
-
-                            }
-
+                                'X-BaliHiking-Cache': 'mountain',
+                            },
                         }
                     );
 
-
-                if (
-                    response.ok
-                ) {
-
-                    await cache.put(
-                        window.location.href,
-                        response.clone()
-                    );
-
-
-                    try {
-
-                        localStorage.setItem(
-                            MOUNTAIN_CACHE_TIME_KEY,
-                            String(
-                                Date.now()
-                            )
-                        );
-
-                    } catch (
-                        error
-                    ) {}
-
-
-                    showCacheTimestamp();
-
+                if (!response.ok) {
+                    return;
                 }
 
+                await cache.put(
+                    window.location.href,
+                    response.clone()
+                );
 
-            } catch (
-                error
-            ) {
+                try {
+                    localStorage.setItem(
+                        MOUNTAIN_CACHE_TIME_KEY,
+                        String(Date.now())
+                    );
+                } catch (error) {}
 
+                showCacheTimestamp();
+            } catch (error) {
                 console.warn(
                     '[BaliHiking Gunung] Cache halaman gagal:',
                     error
                 );
-
             }
-
         }
-
 
 
         /*
@@ -3085,97 +2890,58 @@
         */
 
         async function cacheLocalAssets() {
-
             if (
                 !navigator.onLine
                 ||
                 !('caches' in window)
             ) {
-
                 return;
-
             }
 
-
             const assets = [
-
                 '/manifest.webmanifest',
-
                 '/vendor/tailwindcss.js',
-
                 '/icons/icon-192.png',
-
                 '/icons/icon-512.png',
-
                 '/icons/icon-maskable-192.png',
-
                 '/icons/icon-maskable-512.png',
-
             ];
 
-
             try {
-
                 const cache =
                     await caches.open(
                         MOUNTAIN_CACHE
                     );
 
-
-                for (
-                    const url
-                    of assets
-                ) {
-
+                for (const url of assets) {
                     try {
-
                         const response =
-                            await fetch(
-                                url
-                            );
+                            await fetch(url);
 
-
-                        if (
-                            response.ok
-                        ) {
-
+                        if (response.ok) {
                             await cache.put(
                                 url,
                                 response.clone()
                             );
-
                         }
-
-                    } catch (
-                        error
-                    ) {}
-
+                    } catch (error) {}
                 }
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
                     '[BaliHiking Gunung] Cache asset gagal:',
                     error
                 );
-
             }
-
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | CACHE COVER
+        | CACHE COVER IMAGE
         |--------------------------------------------------------------------------
         */
 
         async function cacheMountainCover() {
-
             if (
                 !mountainCoverUrl
                 ||
@@ -3183,156 +2949,96 @@
                 ||
                 !('caches' in window)
             ) {
-
                 return;
-
             }
 
-
             try {
-
                 const cache =
                     await caches.open(
                         MOUNTAIN_CACHE
                     );
-
 
                 const response =
                     await fetch(
                         mountainCoverUrl,
                         {
-                            mode:
-                                'no-cors',
-
-                            cache:
-                                'force-cache'
+                            mode: 'no-cors',
+                            cache: 'force-cache',
                         }
                     );
-
 
                 if (
                     response.ok
                     ||
-                    response.type ===
-                        'opaque'
+                    response.type === 'opaque'
                 ) {
-
                     await cache.put(
                         mountainCoverUrl,
                         response.clone()
                     );
-
                 }
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
-                    '[BaliHiking Gunung] Cover tidak dapat dicache.'
+                    '[BaliHiking Gunung] Cover tidak dapat dicache:',
+                    error
                 );
-
             }
-
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | PREFETCH TRAIL
+        | PREFETCH TRAIL PAGES
         |--------------------------------------------------------------------------
         */
 
         async function prefetchTrailPages() {
-
             if (
                 !navigator.onLine
                 ||
                 !('caches' in window)
                 ||
-                !Array.isArray(
-                    trailUrls
-                )
+                !Array.isArray(trailUrls)
             ) {
-
                 return;
-
             }
 
-
             try {
-
                 const cache =
                     await caches.open(
                         MOUNTAIN_CACHE
                     );
 
-
-                for (
-                    const url
-                    of trailUrls
-                ) {
-
+                for (const url of trailUrls) {
                     try {
-
                         const response =
                             await fetch(
                                 url,
                                 {
-                                    method:
-                                        'GET',
-
-                                    credentials:
-                                        'same-origin',
-
-                                    cache:
-                                        'no-store',
-
+                                    method: 'GET',
+                                    credentials: 'same-origin',
+                                    cache: 'no-store',
                                     headers: {
-
-                                        'X-BaliHiking-Prefetch':
-                                            'trail'
-
-                                    }
-
+                                        'X-BaliHiking-Prefetch': 'trail',
+                                    },
                                 }
                             );
 
-
-                        if (
-                            response.ok
-                        ) {
-
+                        if (response.ok) {
                             await cache.put(
                                 url,
                                 response.clone()
                             );
-
                         }
-
-
-                    } catch (
-                        error
-                    ) {}
-
+                    } catch (error) {}
                 }
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
                     '[BaliHiking Gunung] Prefetch jalur gagal:',
                     error
                 );
-
             }
-
         }
-
 
 
         /*
@@ -3342,112 +3048,62 @@
         */
 
         function setupOfflineLinks() {
-
             document
                 .querySelectorAll(
                     '[data-offline-link]'
                 )
                 .forEach(
-                    function (
-                        link
-                    ) {
+                    function (link) {
+                        link.addEventListener(
+                            'click',
+                            async function (event) {
+                                if (navigator.onLine) {
+                                    return;
+                                }
 
-                        link
-                            .addEventListener(
-                                'click',
-                                async function (
-                                    event
-                                ) {
+                                event.preventDefault();
 
-                                    if (
-                                        navigator.onLine
-                                    ) {
-
-                                        return;
-
-                                    }
-
-
-                                    event.preventDefault();
-
-
-                                    const available =
-                                        await isPageCached(
-                                            link.href
-                                        );
-
-
-                                    if (
-                                        available
-                                    ) {
-
-                                        window.location.href =
-                                            link.href;
-
-
-                                        return;
-
-                                    }
-
-
-                                    showToast(
-                                        'Halaman belum tersedia offline',
-                                        'Buka halaman tersebut minimal satu kali ketika online agar BaliHiking dapat menyimpannya.',
-                                        'warning'
+                                const available =
+                                    await isPageCached(
+                                        link.href
                                     );
 
-                                }
-                            );
+                                if (available) {
+                                    window.location.href =
+                                        link.href;
 
+                                    return;
+                                }
+
+                                showToast(
+                                    'Halaman belum tersedia offline',
+                                    'Buka halaman tersebut minimal satu kali ketika online agar BaliHiking dapat menyimpannya.',
+                                    'warning'
+                                );
+                            }
+                        );
                     }
                 );
-
         }
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CACHE CHECK
-        |--------------------------------------------------------------------------
-        */
-
-        async function isPageCached(
-            url
-        ) {
-
-            if (
-                !('caches' in window)
-            ) {
-
+        async function isPageCached(url) {
+            if (!('caches' in window)) {
                 return false;
-
             }
 
-
             try {
-
                 let response =
-                    await caches.match(
-                        url
-                    );
+                    await caches.match(url);
 
-
-                if (
-                    response
-                ) {
-
+                if (response) {
                     return true;
-
                 }
-
 
                 const parsed =
                     new URL(
                         url,
                         window.location.origin
                     );
-
 
                 response =
                     await caches.match(
@@ -3456,84 +3112,49 @@
                         parsed.search
                     );
 
-
-                if (
-                    response
-                ) {
-
+                if (response) {
                     return true;
-
                 }
-
 
                 const cacheNames =
                     await caches.keys();
 
-
-                for (
-                    const cacheName
-                    of cacheNames
-                ) {
-
+                for (const cacheName of cacheNames) {
                     const cache =
                         await caches.open(
                             cacheName
                         );
 
-
                     response =
                         await cache.match(
                             url,
                             {
-                                ignoreSearch:
-                                    true
+                                ignoreSearch: true,
                             }
                         );
 
-
-                    if (
-                        response
-                    ) {
-
+                    if (response) {
                         return true;
-
                     }
-
 
                     response =
                         await cache.match(
                             parsed.pathname,
                             {
-                                ignoreSearch:
-                                    true
+                                ignoreSearch: true,
                             }
                         );
 
-
-                    if (
-                        response
-                    ) {
-
+                    if (response) {
                         return true;
-
                     }
-
                 }
 
-
                 return false;
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 return false;
-
             }
-
         }
-
 
 
         /*
@@ -3543,444 +3164,630 @@
         */
 
         function showCacheTimestamp() {
-
-            let saved =
-                null;
-
+            let saved = null;
 
             try {
-
                 saved =
                     localStorage.getItem(
                         MOUNTAIN_CACHE_TIME_KEY
                     );
+            } catch (error) {}
 
-            } catch (
-                error
-            ) {}
-
-
-            if (
-                !saved
-            ) {
-
-                cacheTimestampContainer
-                    .classList
-                    .remove(
-                        'show'
-                    );
-
-
+            if (!saved) {
+                cacheTimestampContainer?.classList.remove('show');
                 return;
-
             }
-
 
             const date =
                 new Date(
-                    Number(
-                        saved
-                    )
+                    Number(saved)
                 );
-
 
             if (
                 Number.isNaN(
                     date.getTime()
                 )
             ) {
-
                 return;
-
             }
 
-
-            cacheTimestamp
-                .innerText =
+            if (cacheTimestamp) {
+                cacheTimestamp.innerText =
                     date.toLocaleString(
                         'id-ID',
                         {
-                            dateStyle:
-                                'medium',
-
-                            timeStyle:
-                                'short'
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
                         }
                     );
+            }
 
-
-            cacheTimestampContainer
-                .classList
-                .add(
-                    'show'
-                );
-
+            cacheTimestampContainer?.classList.add('show');
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | WEATHER SETUP
+        | WEATHER BUTTON
         |--------------------------------------------------------------------------
         */
 
-        function setupWeather() {
-
-            if (
-                initialWeather
-            ) {
-
-                saveWeatherToDevice(
-                    initialWeather
-                );
-
-
-                renderWeather(
-                    initialWeather,
-                    !navigator.onLine
-                );
-
-
-            } else {
-
-
-                const savedWeather =
-                    loadWeatherFromDevice();
-
-
-                if (
-                    savedWeather
-                ) {
-
-                    renderWeather(
-                        savedWeather,
-                        true
-                    );
-
-
-                } else {
-
-
-                    renderWeatherUnavailable();
-
-                }
-
-            }
-
-
-            updateWeatherNetworkUI();
-
-
+        function setupWeatherButton() {
             const button =
                 document.getElementById(
                     'refreshWeatherButton'
                 );
 
-
-            if (
-                button
-            ) {
-
-                button.addEventListener(
-                    'click',
-                    async function () {
-
-                        if (
-                            !navigator.onLine
-                        ) {
-
-                            showToast(
-                                'Cuaca Offline',
-                                'Perkiraan terbaru membutuhkan internet. BaliHiking tetap menampilkan data cuaca terakhir yang tersimpan.',
-                                'warning'
-                            );
-
-
-                            return;
-
-                        }
-
-
-                        await refreshWeather(
-                            true
-                        );
-
-                    }
-                );
-
+            if (!button) {
+                return;
             }
 
-        }
+            button.addEventListener(
+                'click',
+                async function () {
+                    if (!navigator.onLine) {
+                        showToast(
+                            'Cuaca Offline',
+                            'Perkiraan terbaru membutuhkan internet. BaliHiking tetap menampilkan data cuaca terakhir yang tersimpan.',
+                            'warning'
+                        );
 
+                        const savedWeather =
+                            loadWeatherFromDevice();
+
+                        if (savedWeather) {
+                            renderWeather(
+                                savedWeather,
+                                true
+                            );
+                        }
+
+                        return;
+                    }
+
+                    await refreshWeather(
+                        true,
+                        true
+                    );
+                }
+            );
+        }
 
 
         /*
         |--------------------------------------------------------------------------
         | REFRESH WEATHER
         |--------------------------------------------------------------------------
+        |
+        | Mendukung dua response:
+        |
+        | Baru:
+        | {
+        |   success: true,
+        |   current: {...},
+        |   forecast: [...]
+        | }
+        |
+        | Legacy:
+        | {
+        |   success: true,
+        |   weather: {
+        |      current: {...},
+        |      daily: [...]
+        |   }
+        | }
+        |
         */
 
         async function refreshWeather(
-            notify =
-                false
+            forceRefresh = false,
+            notify = false
         ) {
-
             if (
                 !navigator.onLine
+                ||
+                weatherRequestRunning
             ) {
-
                 return;
-
             }
 
+            weatherRequestRunning = true;
 
             const button =
                 document.getElementById(
                     'refreshWeatherButton'
                 );
 
-
-            if (
-                button
-            ) {
-
-                button.disabled =
-                    true;
-
-
-                button.textContent =
-                    'Memuat...';
-
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Memuat...';
             }
 
-
             try {
+                const url =
+                    forceRefresh
+                        ? weatherEndpoint
+                            +
+                            (
+                                weatherEndpoint.includes('?')
+                                    ? '&'
+                                    : '?'
+                            )
+                            +
+                            'refresh=1'
+                        : weatherEndpoint;
 
                 const response =
                     await fetch(
-                        weatherEndpoint,
+                        url,
                         {
-                            method:
-                                'GET',
-
-                            credentials:
-                                'same-origin',
-
-                            cache:
-                                'no-store',
-
+                            method: 'GET',
+                            credentials: 'same-origin',
+                            cache: 'no-store',
                             headers: {
-
-                                'Accept':
-                                    'application/json',
-
-                            }
-
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
                         }
                     );
 
+                let result = null;
 
-                if (
-                    !response.ok
-                ) {
-
+                try {
+                    result =
+                        await response.json();
+                } catch (parseError) {
                     throw new Error(
-                        'Weather request failed'
+                        'Response cuaca dari server bukan JSON yang valid.'
                     );
-
                 }
 
+                if (!response.ok) {
+                    throw new Error(
+                        result?.message
+                        ||
+                        `Weather HTTP ${response.status}`
+                    );
+                }
 
-                const result =
-                    await response.json();
+                if (!result?.success) {
+                    throw new Error(
+                        result?.message
+                        ||
+                        'Perkiraan cuaca belum tersedia.'
+                    );
+                }
 
+                const weather =
+                    normalizeWeatherPayload(
+                        result
+                    );
 
                 if (
-                    !result.success
+                    !weather
                     ||
-                    !result.weather
+                    !weather.current
                 ) {
-
                     throw new Error(
-                        'Weather unavailable'
+                        'Data cuaca dari server tidak lengkap.'
                     );
-
                 }
-
 
                 saveWeatherToDevice(
-                    result.weather
+                    weather
                 );
 
-
                 renderWeather(
-                    result.weather,
+                    weather,
                     false
                 );
 
-
-                if (
-                    notify
-                ) {
-
+                if (notify) {
                     showToast(
                         'Cuaca Diperbarui',
                         'Perkiraan cuaca terbaru berhasil diperbarui.'
                     );
-
                 }
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
                     '[BaliHiking Weather]',
                     error
                 );
 
-
                 const savedWeather =
                     loadWeatherFromDevice();
 
-
-                if (
-                    savedWeather
-                ) {
-
+                if (savedWeather) {
                     renderWeather(
                         savedWeather,
                         true
                     );
-
-
                 } else {
-
-
-                    renderWeatherUnavailable();
-
+                    renderWeatherUnavailable(
+                        error?.message
+                        ||
+                        'Perkiraan cuaca belum tersedia.'
+                    );
                 }
 
-
-                if (
-                    notify
-                ) {
-
+                if (notify) {
                     showToast(
                         'Cuaca Belum Diperbarui',
-                        'BaliHiking menggunakan perkiraan cuaca terakhir yang tersimpan.',
+                        savedWeather
+                            ? 'BaliHiking menggunakan perkiraan cuaca terakhir yang tersimpan.'
+                            : 'Data cuaca belum dapat diambil dari server.',
                         'warning'
                     );
-
                 }
-
-
             } finally {
+                weatherRequestRunning = false;
 
-
-                if (
-                    button
-                ) {
-
-                    button.disabled =
-                        false;
-
-
-                    button.textContent =
-                        'Perbarui';
-
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Perbarui';
                 }
-
             }
-
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | SAVE WEATHER
+        | NORMALIZE WEATHER PAYLOAD
         |--------------------------------------------------------------------------
         */
 
-        function saveWeatherToDevice(
-            weather
-        ) {
+        function normalizeWeatherPayload(result) {
+            const source =
+                result?.weather
+                ??
+                result;
 
-            try {
+            if (
+                !source
+                ||
+                typeof source !== 'object'
+            ) {
+                return null;
+            }
 
-                localStorage.setItem(
-                    WEATHER_STORAGE_KEY,
-                    JSON.stringify(
-                        weather
-                    )
+            const current =
+                source.current
+                ??
+                null;
+
+            if (!current) {
+                return null;
+            }
+
+            const rawDays =
+                source.forecast
+                ??
+                source.daily
+                ??
+                [];
+
+            const daily =
+                Array.isArray(rawDays)
+                    ? rawDays
+                        .slice(0, 5)
+                        .map(
+                            function (day) {
+                                return normalizeWeatherDay(day);
+                            }
+                        )
+                    : [];
+
+            return {
+                success: true,
+
+                mountain_id:
+                    source.mountain_id
+                    ??
+                    @json($mountain->id),
+
+                mountain_name:
+                    source.mountain_name
+                    ??
+                    @json($mountain->name),
+
+                location:
+                    source.location
+                    ??
+                    @json($mountain->location ?? 'Bali'),
+
+                coordinate_source:
+                    source.coordinates?.source
+                    ??
+                    source.coordinate_source
+                    ??
+                    'unknown',
+
+                coordinates:
+                    source.coordinates
+                    ??
+                    null,
+
+                current: {
+                    temperature:
+                        numberOrNull(
+                            current.temperature
+                        ),
+
+                    apparent_temperature:
+                        numberOrNull(
+                            current.apparent_temperature
+                        ),
+
+                    humidity:
+                        numberOrNull(
+                            current.humidity
+                        ),
+
+                    precipitation:
+                        numberOrNull(
+                            current.precipitation
+                        ),
+
+                    cloud_cover:
+                        numberOrNull(
+                            current.cloud_cover
+                        ),
+
+                    wind_speed:
+                        numberOrNull(
+                            current.wind_speed
+                        ),
+
+                    wind_direction:
+                        numberOrNull(
+                            current.wind_direction
+                        ),
+
+                    weather_code:
+                        current.weather_code
+                        ??
+                        null,
+
+                    condition:
+                        current.condition
+                        ??
+                        'Cuaca',
+
+                    icon:
+                        current.icon
+                        ??
+                        'cloud',
+                },
+
+                daily: daily,
+
+                stale:
+                    Boolean(
+                        source.stale
+                    ),
+
+                cached:
+                    Boolean(
+                        source.cached
+                    ),
+
+                updated_label:
+                    source.updated_at_label
+                    ??
+                    source.updated_label
+                    ??
+                    null,
+            };
+        }
+
+        function normalizeWeatherDay(day) {
+            const dateValue =
+                day?.date
+                ??
+                day?.time
+                ??
+                null;
+
+            let date = null;
+
+            if (dateValue) {
+                date =
+                    new Date(
+                        `${dateValue}T12:00:00`
+                    );
+            }
+
+            const validDate =
+                date
+                &&
+                !Number.isNaN(
+                    date.getTime()
                 );
 
+            return {
+                date: dateValue,
+
+                day_name:
+                    day?.day_name
+                    ??
+                    (
+                        validDate
+                            ? date.toLocaleDateString(
+                                'id-ID',
+                                {
+                                    weekday: 'short',
+                                }
+                            )
+                            : '-'
+                    ),
+
+                day_full:
+                    day?.day_full
+                    ??
+                    (
+                        validDate
+                            ? date.toLocaleDateString(
+                                'id-ID',
+                                {
+                                    day: '2-digit',
+                                    month: 'short',
+                                }
+                            )
+                            : ''
+                    ),
+
+                condition:
+                    day?.condition
+                    ??
+                    '-',
+
+                icon:
+                    day?.icon
+                    ??
+                    'cloud',
+
+                temperature_max:
+                    numberOrNull(
+                        day?.temperature_max
+                    ),
+
+                temperature_min:
+                    numberOrNull(
+                        day?.temperature_min
+                    ),
+
+                rain_probability:
+                    numberOrNull(
+                        day?.precipitation_probability
+                        ??
+                        day?.rain_probability
+                    )
+                    ??
+                    0,
+
+                wind_max:
+                    numberOrNull(
+                        day?.wind_speed_max
+                        ??
+                        day?.wind_max
+                    ),
+
+                sunrise:
+                    formatWeatherTime(
+                        day?.sunrise
+                    ),
+
+                sunset:
+                    formatWeatherTime(
+                        day?.sunset
+                    ),
+            };
+        }
+
+        function numberOrNull(value) {
+            if (
+                value === null
+                ||
+                value === undefined
+                ||
+                value === ''
+                ||
+                Number.isNaN(
+                    Number(value)
+                )
+            ) {
+                return null;
+            }
+
+            return Number(value);
+        }
+
+        function formatWeatherTime(value) {
+            if (!value) {
+                return null;
+            }
+
+            const stringValue =
+                String(value);
+
+            if (
+                /^\d{2}:\d{2}/.test(
+                    stringValue
+                )
+            ) {
+                return stringValue.substring(0, 5);
+            }
+
+            const date =
+                new Date(stringValue);
+
+            if (
+                Number.isNaN(
+                    date.getTime()
+                )
+            ) {
+                return stringValue;
+            }
+
+            return date.toLocaleTimeString(
+                'id-ID',
+                {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                }
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SAVE + LOAD WEATHER OFFLINE
+        |--------------------------------------------------------------------------
+        */
+
+        function saveWeatherToDevice(weather) {
+            try {
+                localStorage.setItem(
+                    WEATHER_STORAGE_KEY,
+                    JSON.stringify(weather)
+                );
 
                 localStorage.setItem(
                     WEATHER_STORAGE_TIME_KEY,
-                    String(
-                        Date.now()
-                    )
+                    String(Date.now())
                 );
-
-
-            } catch (
-                error
-            ) {
-
+            } catch (error) {
                 console.warn(
-                    '[BaliHiking Weather] Penyimpanan offline gagal.'
+                    '[BaliHiking Weather] Penyimpanan offline gagal:',
+                    error
                 );
-
             }
-
         }
 
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOAD WEATHER
-        |--------------------------------------------------------------------------
-        */
-
         function loadWeatherFromDevice() {
-
             try {
-
                 const raw =
                     localStorage.getItem(
                         WEATHER_STORAGE_KEY
                     );
 
-
-                if (
-                    !raw
-                ) {
-
+                if (!raw) {
                     return null;
-
                 }
 
+                const data =
+                    JSON.parse(raw);
 
-                return JSON.parse(
-                    raw
-                );
-
-
-            } catch (
-                error
-            ) {
-
+                return data
+                    &&
+                    data.current
+                        ? data
+                        : null;
+            } catch (error) {
                 return null;
-
             }
-
         }
-
 
 
         /*
@@ -3990,46 +3797,21 @@
         */
 
         function updateWeatherNetworkUI() {
-
             const badge =
                 document.getElementById(
                     'weatherOfflineBadge'
                 );
 
-
-            if (
-                !badge
-            ) {
-
+            if (!badge) {
                 return;
-
             }
 
-
-            if (
-                navigator.onLine
-            ) {
-
-                badge
-                    .classList
-                    .remove(
-                        'show'
-                    );
-
-
+            if (navigator.onLine) {
+                badge.classList.remove('show');
             } else {
-
-
-                badge
-                    .classList
-                    .add(
-                        'show'
-                    );
-
+                badge.classList.add('show');
             }
-
         }
-
 
 
         /*
@@ -4040,32 +3822,28 @@
 
         function renderWeather(
             weather,
-            offline =
-                false
+            offline = false
         ) {
-
             if (
                 !weather
                 ||
                 !weather.current
             ) {
-
                 renderWeatherUnavailable();
-
                 return;
-
             }
-
 
             const current =
                 weather.current;
-
 
             const currentContainer =
                 document.getElementById(
                     'weatherCurrent'
                 );
 
+            if (!currentContainer) {
+                return;
+            }
 
             currentContainer.innerHTML =
                 `
@@ -4079,7 +3857,6 @@
                         sm:justify-between
                     "
                 >
-
                     <div
                         class="
                             flex
@@ -4087,7 +3864,6 @@
                             gap-4
                         "
                     >
-
                         <div
                             class="
                                 flex
@@ -4101,14 +3877,10 @@
                                 text-3xl
                             "
                         >
-                            ${weatherIcon(
-                                current.icon
-                            )}
+                            ${weatherIcon(current.icon)}
                         </div>
 
-
                         <div>
-
                             <div
                                 class="
                                     flex
@@ -4116,7 +3888,6 @@
                                     gap-1
                                 "
                             >
-
                                 <span
                                     class="
                                         text-4xl
@@ -4131,7 +3902,6 @@
                                     }
                                 </span>
 
-
                                 <span
                                     class="
                                         mt-1
@@ -4142,9 +3912,7 @@
                                 >
                                     °C
                                 </span>
-
                             </div>
-
 
                             <p
                                 class="
@@ -4153,15 +3921,12 @@
                                     font-bold
                                 "
                             >
-                                ${
-                                    escapeWeatherHtml(
-                                        current.condition
-                                        ??
-                                        'Cuaca'
-                                    )
-                                }
+                                ${escapeWeatherHtml(
+                                    current.condition
+                                    ??
+                                    'Cuaca'
+                                )}
                             </p>
-
 
                             <p
                                 class="
@@ -4171,19 +3936,14 @@
                                 "
                             >
                                 Terasa seperti
-
                                 ${
                                     current.apparent_temperature
                                     ??
                                     '--'
                                 }°C
                             </p>
-
                         </div>
-
                     </div>
-
-
 
                     <div
                         class="
@@ -4193,7 +3953,6 @@
                             sm:min-w-[280px]
                         "
                     >
-
                         ${weatherInfoBox(
                             'Kelembapan',
                             (
@@ -4204,7 +3963,6 @@
                             +
                             '%'
                         )}
-
 
                         ${weatherInfoBox(
                             'Angin',
@@ -4217,7 +3975,6 @@
                             ' km/j'
                         )}
 
-
                         ${weatherInfoBox(
                             'Awan',
                             (
@@ -4228,11 +3985,8 @@
                             +
                             '%'
                         )}
-
                     </div>
-
                 </div>
-
 
                 <div
                     class="
@@ -4242,7 +3996,6 @@
                         gap-2
                     "
                 >
-
                     ${weatherInfoBox(
                         'Hujan',
                         (
@@ -4254,175 +4007,112 @@
                         ' mm'
                     )}
 
-
                     ${weatherInfoBox(
                         'Arah Angin',
-                        current.wind_direction !==
-                            null
-                            &&
-                            current.wind_direction !==
-                            undefined
-
-                            ?
-
-                            current.wind_direction
-                            +
-                            '°'
-
-                            :
-
-                            '--'
+                        current.wind_direction !== null
+                        &&
+                        current.wind_direction !== undefined
+                            ? current.wind_direction + '°'
+                            : '--'
                     )}
-
 
                     ${weatherInfoBox(
-                        'Lokasi',
-                        weather.coordinate_source ===
-                            'database'
-
-                            ?
-
-                            'Koordinat'
-
-                            :
-
-                            'Alamat'
+                        'Sumber Lokasi',
+                        weatherCoordinateSourceLabel(
+                            weather.coordinate_source
+                        )
                     )}
-
                 </div>
                 `;
 
-
             renderDailyWeather(
                 weather.daily
-                ||
+                ??
                 []
             );
-
 
             const updated =
                 document.getElementById(
                     'weatherUpdated'
                 );
 
-
             const staleBadge =
                 document.getElementById(
                     'weatherStaleBadge'
                 );
 
-
             if (
                 weather.stale
-            ) {
-
-                staleBadge
-                    .classList
-                    .add(
-                        'show'
-                    );
-
-
-            } else {
-
-
-                staleBadge
-                    .classList
-                    .remove(
-                        'show'
-                    );
-
-            }
-
-
-            if (
+                ||
                 offline
             ) {
-
-                let savedTime =
-                    null;
-
-
-                try {
-
-                    savedTime =
-                        localStorage.getItem(
-                            WEATHER_STORAGE_TIME_KEY
-                        );
-
-                } catch (
-                    error
-                ) {}
-
-
-                if (
-                    savedTime
-                ) {
-
-                    const date =
-                        new Date(
-                            Number(
-                                savedTime
-                            )
-                        );
-
-
-                    updated.textContent =
-                        'Offline · tersimpan '
-                        +
-                        date.toLocaleString(
-                            'id-ID',
-                            {
-                                dateStyle:
-                                    'short',
-
-                                timeStyle:
-                                    'short'
-                            }
-                        );
-
-
-                } else {
-
-
-                    updated.textContent =
-                        'Offline · data tersimpan';
-
-                }
-
-
+                staleBadge?.classList.add('show');
             } else {
-
-
-                updated.textContent =
-                    weather.updated_label
-                        ?
-                        'Update '
-                        +
-                        weather.updated_label
-                        :
-                        'Cuaca terbaru';
-
+                staleBadge?.classList.remove('show');
             }
 
+            if (updated) {
+                if (offline) {
+                    let savedTime = null;
+
+                    try {
+                        savedTime =
+                            localStorage.getItem(
+                                WEATHER_STORAGE_TIME_KEY
+                            );
+                    } catch (error) {}
+
+                    if (savedTime) {
+                        const date =
+                            new Date(
+                                Number(savedTime)
+                            );
+
+                        updated.textContent =
+                            'Offline · tersimpan '
+                            +
+                            date.toLocaleString(
+                                'id-ID',
+                                {
+                                    dateStyle: 'short',
+                                    timeStyle: 'short',
+                                }
+                            );
+                    } else {
+                        updated.textContent =
+                            'Offline · data tersimpan';
+                    }
+                } else {
+                    updated.textContent =
+                        weather.updated_label
+                            ? 'Update ' + weather.updated_label
+                            : 'Cuaca terbaru';
+                }
+            }
 
             updateWeatherNetworkUI();
-
         }
 
+        function weatherCoordinateSourceLabel(source) {
+            switch (source) {
+                case 'database':
+                    return 'Koordinat';
 
+                case 'bali-preset':
+                    return 'Preset Bali';
 
-        /*
-        |--------------------------------------------------------------------------
-        | INFO BOX
-        |--------------------------------------------------------------------------
-        */
+                case 'geocoding':
+                    return 'Geocoding';
 
-        function weatherInfoBox(
-            label,
-            value
-        ) {
+                case 'cache':
+                    return 'Cache';
 
+                default:
+                    return 'Lokasi';
+            }
+        }
+
+        function weatherInfoBox(label, value) {
             return `
                 <div
                     class="
@@ -4433,7 +4123,6 @@
                         text-center
                     "
                 >
-
                     <p
                         class="
                             text-[8px]
@@ -4442,7 +4131,6 @@
                     >
                         ${escapeWeatherHtml(label)}
                     </p>
-
 
                     <p
                         class="
@@ -4454,12 +4142,9 @@
                     >
                         ${escapeWeatherHtml(value)}
                     </p>
-
                 </div>
             `;
-
         }
-
 
 
         /*
@@ -4468,29 +4153,23 @@
         |--------------------------------------------------------------------------
         */
 
-        function renderDailyWeather(
-            days
-        ) {
-
+        function renderDailyWeather(days) {
             const container =
                 document.getElementById(
                     'weatherForecast'
                 );
 
+            if (!container) {
+                return;
+            }
 
-            container.innerHTML =
-                '';
-
+            container.innerHTML = '';
 
             if (
-                !Array.isArray(
-                    days
-                )
+                !Array.isArray(days)
                 ||
-                days.length ===
-                    0
+                days.length === 0
             ) {
-
                 container.innerHTML =
                     `
                     <p
@@ -4503,295 +4182,228 @@
                     </p>
                     `;
 
-
                 return;
-
             }
 
+            days
+                .slice(0, 5)
+                .forEach(
+                    function (day, index) {
+                        const element =
+                            document.createElement(
+                                'div'
+                            );
 
-            days.forEach(
-                function (
-                    day,
-                    index
-                ) {
+                        element.className =
+                            'weather-day rounded-xl border border-brand-dark/10 bg-brand-cream p-3 text-center';
 
-                    const element =
-                        document.createElement(
-                            'div'
-                        );
-
-
-                    element.className =
-                        'weather-day rounded-xl border border-brand-dark/10 bg-brand-cream p-3 text-center';
-
-
-                    element.innerHTML =
-                        `
-                        <p
-                            class="
-                                text-[9px]
-                                font-black
+                        element.innerHTML =
+                            `
+                            <p
+                                class="
+                                    text-[9px]
+                                    font-black
+                                    ${
+                                        index === 0
+                                            ? 'text-brand-orange'
+                                            : 'text-brand-dark/50'
+                                    }
+                                "
+                            >
                                 ${
                                     index === 0
-                                        ?
-                                        'text-brand-orange'
-                                        :
-                                        'text-brand-dark/50'
+                                        ? 'Hari ini'
+                                        : escapeWeatherHtml(
+                                            day.day_name
+                                            ??
+                                            '-'
+                                        )
                                 }
-                            "
-                        >
-                            ${
-                                index === 0
-                                    ?
-                                    'Hari ini'
-                                    :
-                                    escapeWeatherHtml(
-                                        day.day_name
-                                        ??
-                                        '-'
-                                    )
-                            }
-                        </p>
+                            </p>
 
-
-                        <p
-                            class="
-                                mt-0.5
-                                truncate
-                                text-[8px]
-                                text-brand-dark/35
-                            "
-                        >
-                            ${
-                                escapeWeatherHtml(
-                                    day.day_full
-                                    ??
-                                    ''
-                                )
-                            }
-                        </p>
-
-
-                        <div
-                            class="
-                                my-2
-                                text-2xl
-                            "
-                        >
-                            ${weatherIcon(
-                                day.icon
-                            )}
-                        </div>
-
-
-                        <p
-                            class="
-                                truncate
-                                text-[9px]
-                                font-semibold
-                            "
-                        >
-                            ${
-                                escapeWeatherHtml(
-                                    day.condition
-                                    ??
-                                    '-'
-                                )
-                            }
-                        </p>
-
-
-                        <p
-                            class="
-                                mt-2
-                                text-xs
-                                font-black
-                            "
-                        >
-
-                            ${
-                                day.temperature_max
-                                ??
-                                '--'
-                            }°
-
-                            <span
+                            <p
                                 class="
-                                    font-semibold
+                                    mt-0.5
+                                    truncate
+                                    text-[8px]
                                     text-brand-dark/35
                                 "
                             >
+                                ${escapeWeatherHtml(
+                                    day.day_full
+                                    ??
+                                    ''
+                                )}
+                            </p>
 
-                                /
+                            <div
+                                class="
+                                    my-2
+                                    text-2xl
+                                "
+                            >
+                                ${weatherIcon(day.icon)}
+                            </div>
 
+                            <p
+                                class="
+                                    truncate
+                                    text-[9px]
+                                    font-semibold
+                                "
+                            >
+                                ${escapeWeatherHtml(
+                                    day.condition
+                                    ??
+                                    '-'
+                                )}
+                            </p>
+
+                            <p
+                                class="
+                                    mt-2
+                                    text-xs
+                                    font-black
+                                "
+                            >
                                 ${
-                                    day.temperature_min
+                                    day.temperature_max
                                     ??
                                     '--'
                                 }°
 
-                            </span>
-
-                        </p>
-
-
-                        <div
-                            class="
-                                mt-2
-                                flex
-                                items-center
-                                justify-center
-                                gap-1
-                                text-[8px]
-                                font-bold
-                                text-sky-600
-                            "
-                        >
-
-                            <span>
-                                💧
-                            </span>
-
-                            <span>
-                                ${
-                                    day.rain_probability
-                                    ??
-                                    0
-                                }%
-                            </span>
-
-                        </div>
-
-
-                        ${
-                            day.wind_max !==
-                                null
-                                &&
-                                day.wind_max !==
-                                undefined
-
-                                ?
-
-                                `
-                                <p
+                                <span
                                     class="
-                                        mt-1
-                                        text-[8px]
+                                        font-semibold
                                         text-brand-dark/35
                                     "
                                 >
-                                    Angin
-                                    ${day.wind_max}
-                                    km/j
-                                </p>
-                                `
+                                    /
+                                    ${
+                                        day.temperature_min
+                                        ??
+                                        '--'
+                                    }°
+                                </span>
+                            </p>
 
-                                :
+                            <div
+                                class="
+                                    mt-2
+                                    flex
+                                    items-center
+                                    justify-center
+                                    gap-1
+                                    text-[8px]
+                                    font-bold
+                                    text-sky-600
+                                "
+                            >
+                                <span>💧</span>
+                                <span>
+                                    ${
+                                        day.rain_probability
+                                        ??
+                                        0
+                                    }%
+                                </span>
+                            </div>
 
-                                ''
-                        }
+                            ${
+                                day.wind_max !== null
+                                &&
+                                day.wind_max !== undefined
+                                    ? `
+                                        <p
+                                            class="
+                                                mt-1
+                                                text-[8px]
+                                                text-brand-dark/35
+                                            "
+                                        >
+                                            Angin ${day.wind_max} km/j
+                                        </p>
+                                    `
+                                    : ''
+                            }
 
-
-                        ${
-                            day.sunrise
+                            ${
+                                day.sunrise
                                 &&
                                 day.sunset
+                                    ? `
+                                        <p
+                                            class="
+                                                mt-1
+                                                text-[8px]
+                                                text-brand-dark/30
+                                            "
+                                        >
+                                            ☀ ${escapeWeatherHtml(day.sunrise)}
+                                            ·
+                                            ${escapeWeatherHtml(day.sunset)}
+                                        </p>
+                                    `
+                                    : ''
+                            }
+                            `;
 
-                                ?
-
-                                `
-                                <p
-                                    class="
-                                        mt-1
-                                        text-[8px]
-                                        text-brand-dark/30
-                                    "
-                                >
-                                    ☀
-                                    ${day.sunrise}
-
-                                    ·
-
-                                    ${day.sunset}
-                                </p>
-                                `
-
-                                :
-
-                                ''
-                        }
-                        `;
-
-
-                    container
-                        .appendChild(
+                        container.appendChild(
                             element
                         );
-
-                }
-            );
-
+                    }
+                );
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
         | WEATHER ICON
         |--------------------------------------------------------------------------
-        |
-        | Menggunakan emoji agar tidak membutuhkan internet.
-        |--------------------------------------------------------------------------
         */
 
-        function weatherIcon(
-            icon
-        ) {
-
-            switch (
-                icon
-            ) {
-
-                case 'sun':
-
-                    return '☀️';
-
-
-                case 'cloud-sun':
-
-                    return '🌤️';
-
-
-                case 'fog':
-
-                    return '🌫️';
-
-
-                case 'drizzle':
-
-                    return '🌦️';
-
-
-                case 'rain':
-
-                    return '🌧️';
-
-
-                case 'storm':
-
-                    return '⛈️';
-
-
-                case 'cloud':
-
-                default:
-
-                    return '☁️';
-
+        function weatherIcon(icon) {
+            if (!icon) {
+                return '☁️';
             }
 
-        }
+            const iconString =
+                String(icon);
 
+            /*
+            | Jika backend sudah mengirim emoji, gunakan langsung.
+            */
+            if (/[^\x00-\x7F]/.test(iconString)) {
+                return iconString;
+            }
+
+            switch (iconString) {
+                case 'sun':
+                    return '☀️';
+
+                case 'cloud-sun':
+                    return '🌤️';
+
+                case 'fog':
+                    return '🌫️';
+
+                case 'drizzle':
+                    return '🌦️';
+
+                case 'rain':
+                    return '🌧️';
+
+                case 'storm':
+                    return '⛈️';
+
+                case 'snow':
+                    return '❄️';
+
+                case 'cloud':
+                default:
+                    return '☁️';
+            }
+        }
 
 
         /*
@@ -4800,129 +4412,99 @@
         |--------------------------------------------------------------------------
         */
 
-        function renderWeatherUnavailable() {
-
+        function renderWeatherUnavailable(message = null) {
             const current =
                 document.getElementById(
                     'weatherCurrent'
                 );
-
 
             const forecast =
                 document.getElementById(
                     'weatherForecast'
                 );
 
-
-            current.innerHTML =
-                `
-                <div
-                    class="
-                        rounded-xl
-                        bg-brand-dark/[0.04]
-                        px-5
-                        py-6
-                        text-center
-                    "
-                >
-
+            if (current) {
+                current.innerHTML =
+                    `
                     <div
-                        class="text-3xl"
+                        class="
+                            rounded-xl
+                            bg-brand-dark/[0.04]
+                            px-5
+                            py-6
+                            text-center
+                        "
                     >
-                        ☁️
+                        <div class="text-3xl">☁️</div>
+
+                        <p
+                            class="
+                                mt-3
+                                text-sm
+                                font-bold
+                            "
+                        >
+                            Cuaca belum tersedia
+                        </p>
+
+                        <p
+                            class="
+                                mx-auto
+                                mt-1
+                                max-w-sm
+                                text-[10px]
+                                leading-relaxed
+                                text-brand-dark/45
+                            "
+                        >
+                            ${escapeWeatherHtml(
+                                message
+                                ||
+                                'BaliHiking belum berhasil mendapatkan prakiraan cuaca untuk gunung ini.'
+                            )}
+                        </p>
                     </div>
+                    `;
+            }
 
+            if (forecast) {
+                forecast.innerHTML = '';
+            }
 
-                    <p
-                        class="
-                            mt-3
-                            text-sm
-                            font-bold
-                        "
-                    >
-                        Cuaca belum tersedia
-                    </p>
-
-
-                    <p
-                        class="
-                            mx-auto
-                            mt-1
-                            max-w-sm
-                            text-[10px]
-                            leading-relaxed
-                            text-brand-dark/45
-                        "
-                    >
-                        BaliHiking belum berhasil mendapatkan
-                        koordinat atau prakiraan cuaca untuk gunung ini.
-                        Pastikan nama/lokasi gunung sudah benar.
-                    </p>
-
-                </div>
-                `;
-
-
-            forecast.innerHTML =
-                '';
-
-
-            document
-                .getElementById(
+            const updated =
+                document.getElementById(
                     'weatherUpdated'
-                )
-                .textContent =
-                    navigator.onLine
-                        ?
-                        'Data belum tersedia'
-                        :
-                        'Offline';
+                );
 
+            if (updated) {
+                updated.textContent =
+                    navigator.onLine
+                        ? 'Data belum tersedia'
+                        : 'Offline';
+            }
 
             updateWeatherNetworkUI();
-
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | WEATHER ESCAPE
+        | ESCAPE HTML
         |--------------------------------------------------------------------------
         */
 
-        function escapeWeatherHtml(
-            value
-        ) {
-
+        function escapeWeatherHtml(value) {
             return String(
                 value
                 ??
                 ''
             )
-            .replace(
-                /&/g,
-                '&amp;'
-            )
-            .replace(
-                /</g,
-                '&lt;'
-            )
-            .replace(
-                />/g,
-                '&gt;'
-            )
-            .replace(
-                /"/g,
-                '&quot;'
-            )
-            .replace(
-                /'/g,
-                '&#039;'
-            );
-
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
         }
-
 
 
         /*
@@ -4934,96 +4516,67 @@
         function showToast(
             title,
             message,
-            type =
-                'success'
+            type = 'success'
         ) {
-
             const toast =
                 document.getElementById(
                     'mountainToast'
                 );
-
 
             const titleElement =
                 document.getElementById(
                     'mountainToastTitle'
                 );
 
-
             const messageElement =
                 document.getElementById(
                     'mountainToastMessage'
                 );
 
+            if (
+                !toast
+                ||
+                !titleElement
+                ||
+                !messageElement
+            ) {
+                return;
+            }
 
             clearTimeout(
                 toastTimer
             );
 
+            toast.classList.remove(
+                'show',
+                'warning'
+            );
 
-            toast
-                .classList
-                .remove(
-                    'show',
-                    'warning'
-                );
-
-
-            if (
-                type ===
-                    'warning'
-            ) {
-
-                toast
-                    .classList
-                    .add(
-                        'warning'
-                    );
-
+            if (type === 'warning') {
+                toast.classList.add('warning');
             }
 
+            titleElement.innerText =
+                title;
 
-            titleElement
-                .innerText =
-                    title;
-
-
-            messageElement
-                .innerText =
-                    message;
-
+            messageElement.innerText =
+                message;
 
             requestAnimationFrame(
                 function () {
-
-                    toast
-                        .classList
-                        .add(
-                            'show'
-                        );
-
+                    toast.classList.add('show');
                 }
             );
-
 
             toastTimer =
                 setTimeout(
                     function () {
-
-                        toast
-                            .classList
-                            .remove(
-                                'show'
-                            );
-
+                        toast.classList.remove('show');
                     },
                     4000
                 );
-
         }
-
     </script>
-
 
 </body>
 
