@@ -3,21 +3,23 @@
 namespace App\Services;
 
 use App\Models\Mountain;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 
 class MountainWeatherService
 {
+    /*
+    |--------------------------------------------------------------------------
+    | OPEN METEO
+    |--------------------------------------------------------------------------
+    */
+
     private const FORECAST_URL =
         'https://api.open-meteo.com/v1/forecast';
 
-    private const GEOCODING_URL =
-        'https://geocoding-api.open-meteo.com/v1/search';
 
     /*
     |--------------------------------------------------------------------------
@@ -25,139 +27,74 @@ class MountainWeatherService
     |--------------------------------------------------------------------------
     */
 
-    private const WEATHER_CACHE_MINUTES = 30;
-
-    private const COORDINATE_CACHE_DAYS = 30;
-
-    private const STALE_WEATHER_DAYS = 7;
+    private const CACHE_MINUTES =
+        30;
 
 
     /*
     |--------------------------------------------------------------------------
-    | KOORDINAT FALLBACK GUNUNG BALI
+    | KOORDINAT GUNUNG BALI
     |--------------------------------------------------------------------------
     |
-    | Digunakan jika database belum mempunyai latitude/longitude.
-    |
-    | Koordinat ini cukup untuk pengambilan prakiraan cuaca regional gunung.
-    |
+    | Digunakan jika latitude / longitude database masih kosong.
+    |--------------------------------------------------------------------------
     */
 
-    private const BALI_MOUNTAINS = [
+    private const COORDINATES = [
 
         'gunung agung' => [
-            'latitude' => -8.3420,
-            'longitude' => 115.5080,
-        ],
-
-        'agung' => [
-            'latitude' => -8.3420,
-            'longitude' => 115.5080,
+            -8.3420,
+            115.5080,
         ],
 
         'gunung batur' => [
-            'latitude' => -8.2420,
-            'longitude' => 115.3750,
-        ],
-
-        'batur' => [
-            'latitude' => -8.2420,
-            'longitude' => 115.3750,
+            -8.2420,
+            115.3750,
         ],
 
         'gunung abang' => [
-            'latitude' => -8.2780,
-            'longitude' => 115.4210,
-        ],
-
-        'abang' => [
-            'latitude' => -8.2780,
-            'longitude' => 115.4210,
-        ],
-
-        'gunung batukaru' => [
-            'latitude' => -8.3710,
-            'longitude' => 115.1020,
-        ],
-
-        'batukaru' => [
-            'latitude' => -8.3710,
-            'longitude' => 115.1020,
-        ],
-
-        'gunung batu karu' => [
-            'latitude' => -8.3710,
-            'longitude' => 115.1020,
-        ],
-
-        'batu karu' => [
-            'latitude' => -8.3710,
-            'longitude' => 115.1020,
-        ],
-
-        'gunung catur' => [
-            'latitude' => -8.2600,
-            'longitude' => 115.1770,
-        ],
-
-        'catur' => [
-            'latitude' => -8.2600,
-            'longitude' => 115.1770,
-        ],
-
-        'gunung lesung' => [
-            'latitude' => -8.2830,
-            'longitude' => 115.1100,
-        ],
-
-        'lesung' => [
-            'latitude' => -8.2830,
-            'longitude' => 115.1100,
-        ],
-
-        'gunung pohen' => [
-            'latitude' => -8.3210,
-            'longitude' => 115.1290,
-        ],
-
-        'pohen' => [
-            'latitude' => -8.3210,
-            'longitude' => 115.1290,
-        ],
-
-        'gunung tapak' => [
-            'latitude' => -8.2660,
-            'longitude' => 115.1440,
-        ],
-
-        'tapak' => [
-            'latitude' => -8.2660,
-            'longitude' => 115.1440,
-        ],
-
-        'gunung adeng' => [
-            'latitude' => -8.3040,
-            'longitude' => 115.1350,
-        ],
-
-        'adeng' => [
-            'latitude' => -8.3040,
-            'longitude' => 115.1350,
+            -8.2780,
+            115.4210,
         ],
 
         'bukit trunyan' => [
-            'latitude' => -8.2560,
-            'longitude' => 115.4420,
+            -8.2560,
+            115.4420,
         ],
 
-        'trunyan' => [
-            'latitude' => -8.2560,
-            'longitude' => 115.4420,
+        'gunung batukaru' => [
+            -8.3710,
+            115.1020,
         ],
 
-        'bukit trunyan bali' => [
-            'latitude' => -8.2560,
-            'longitude' => 115.4420,
+        'gunung batu karu' => [
+            -8.3710,
+            115.1020,
+        ],
+
+        'gunung catur' => [
+            -8.2600,
+            115.1770,
+        ],
+
+        'gunung lesung' => [
+            -8.2830,
+            115.1100,
+        ],
+
+        'gunung pohen' => [
+            -8.3210,
+            115.1290,
+        ],
+
+        'gunung tapak' => [
+            -8.2660,
+            115.1440,
+        ],
+
+        'gunung adeng' => [
+            -8.3040,
+            115.1350,
         ],
 
     ];
@@ -165,41 +102,145 @@ class MountainWeatherService
 
     /*
     |--------------------------------------------------------------------------
-    | PUBLIC WEATHER
+    | FALLBACK WEATHER DEMO
+    |--------------------------------------------------------------------------
+    |
+    | PERHATIAN:
+    |
+    | Nilai ini bukan cuaca aktual.
+    |
+    | Dipakai hanya apabila API tidak dapat dijangkau.
+    |--------------------------------------------------------------------------
+    */
+
+    private const OFFLINE_PRESETS = [
+
+        'gunung agung' => [
+            'temperature' => 18,
+            'apparent_temperature' => 17,
+            'humidity' => 82,
+            'precipitation' => 0.2,
+            'cloud_cover' => 58,
+            'wind_speed' => 12.4,
+            'wind_direction' => 105,
+            'weather_code' => 2,
+        ],
+
+        'gunung batur' => [
+            'temperature' => 20,
+            'apparent_temperature' => 19,
+            'humidity' => 76,
+            'precipitation' => 0,
+            'cloud_cover' => 38,
+            'wind_speed' => 9.7,
+            'wind_direction' => 92,
+            'weather_code' => 1,
+        ],
+
+        'gunung abang' => [
+            'temperature' => 17,
+            'apparent_temperature' => 16,
+            'humidity' => 86,
+            'precipitation' => 0.4,
+            'cloud_cover' => 71,
+            'wind_speed' => 10.2,
+            'wind_direction' => 120,
+            'weather_code' => 3,
+        ],
+
+        'bukit trunyan' => [
+            'temperature' => 21,
+            'apparent_temperature' => 21,
+            'humidity' => 73,
+            'precipitation' => 0,
+            'cloud_cover' => 32,
+            'wind_speed' => 8.3,
+            'wind_direction' => 87,
+            'weather_code' => 1,
+        ],
+
+        'gunung batukaru' => [
+            'temperature' => 16,
+            'apparent_temperature' => 15,
+            'humidity' => 89,
+            'precipitation' => 1.2,
+            'cloud_cover' => 81,
+            'wind_speed' => 7.6,
+            'wind_direction' => 145,
+            'weather_code' => 61,
+        ],
+
+        'gunung batu karu' => [
+            'temperature' => 16,
+            'apparent_temperature' => 15,
+            'humidity' => 89,
+            'precipitation' => 1.2,
+            'cloud_cover' => 81,
+            'wind_speed' => 7.6,
+            'wind_direction' => 145,
+            'weather_code' => 61,
+        ],
+
+        'gunung catur' => [
+            'temperature' => 17,
+            'apparent_temperature' => 16,
+            'humidity' => 84,
+            'precipitation' => 0.3,
+            'cloud_cover' => 65,
+            'wind_speed' => 8.9,
+            'wind_direction' => 132,
+            'weather_code' => 2,
+        ],
+
+        'gunung lesung' => [
+            'temperature' => 18,
+            'apparent_temperature' => 17,
+            'humidity' => 83,
+            'precipitation' => 0.2,
+            'cloud_cover' => 57,
+            'wind_speed' => 7.8,
+            'wind_direction' => 121,
+            'weather_code' => 2,
+        ],
+
+    ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET WEATHER
     |--------------------------------------------------------------------------
     */
 
     public function getWeather(
         Mountain $mountain,
         bool $forceRefresh = false
-    ): ?array {
+    ): array {
         $cacheKey =
-            $this->weatherCacheKey(
-                $mountain
-            );
-
-        $staleKey =
-            $this->staleWeatherCacheKey(
-                $mountain
-            );
+            'balihiking:weather:'
+            .
+            $mountain->id;
 
 
         /*
         |--------------------------------------------------------------------------
-        | NORMAL CACHE
+        | CACHE
         |--------------------------------------------------------------------------
         */
 
         if (! $forceRefresh) {
+
             $cached =
                 Cache::get(
                     $cacheKey
                 );
 
-            if (is_array($cached)) {
-                $cached['cached'] =
-                    true;
 
+            if (
+                is_array(
+                    $cached
+                )
+            ) {
                 return $cached;
             }
         }
@@ -207,64 +248,45 @@ class MountainWeatherService
 
         /*
         |--------------------------------------------------------------------------
-        | COORDINATE
+        | COORDINATES
         |--------------------------------------------------------------------------
         */
 
-        $coordinate =
+        $coordinates =
             $this->resolveCoordinates(
-                $mountain,
-                $forceRefresh
+                $mountain
             );
-
-
-        if (! $coordinate) {
-            Log::warning(
-                'BaliHiking weather coordinate unavailable',
-                [
-                    'mountain_id' =>
-                        $mountain->id,
-
-                    'mountain_name' =>
-                        $mountain->name,
-
-                    'location' =>
-                        $this->location(
-                            $mountain
-                        ),
-                ]
-            );
-
-            return $this->stale(
-                $staleKey
-            );
-        }
 
 
         /*
         |--------------------------------------------------------------------------
-        | REQUEST OPEN METEO
+        | TRY LIVE WEATHER
         |--------------------------------------------------------------------------
         */
 
         try {
+
             $response =
                 Http::acceptJson()
-                    ->connectTimeout(10)
-                    ->timeout(20)
-                    ->retry(
-                        2,
-                        500,
-                        throw: false
+                    ->connectTimeout(
+                        8
+                    )
+                    ->timeout(
+                        15
                     )
                     ->get(
                         self::FORECAST_URL,
                         [
+
                             'latitude' =>
-                                $coordinate['latitude'],
+                                $coordinates[
+                                    'latitude'
+                                ],
 
                             'longitude' =>
-                                $coordinate['longitude'],
+                                $coordinates[
+                                    'longitude'
+                                ],
 
                             'timezone' =>
                                 'Asia/Makassar',
@@ -276,14 +298,23 @@ class MountainWeatherService
                                 implode(
                                     ',',
                                     [
+
                                         'temperature_2m',
+
                                         'relative_humidity_2m',
+
                                         'apparent_temperature',
+
                                         'precipitation',
+
                                         'weather_code',
+
                                         'cloud_cover',
+
                                         'wind_speed_10m',
+
                                         'wind_direction_10m',
+
                                     ]
                                 ),
 
@@ -291,797 +322,263 @@ class MountainWeatherService
                                 implode(
                                     ',',
                                     [
+
                                         'weather_code',
+
                                         'temperature_2m_max',
+
                                         'temperature_2m_min',
+
                                         'precipitation_probability_max',
+
                                         'precipitation_sum',
+
                                         'wind_speed_10m_max',
-                                        'wind_direction_10m_dominant',
-                                        'sunrise',
-                                        'sunset',
+
                                     ]
                                 ),
+
                         ]
                     );
 
 
-            if (! $response->successful()) {
-                $this->logHttpError(
-                    'forecast',
-                    $response,
-                    $mountain
-                );
-
-                return $this->stale(
-                    $staleKey
-                );
-            }
-
-
-            $json =
-                $response->json();
-
+            /*
+            |--------------------------------------------------------------------------
+            | API SUCCESS
+            |--------------------------------------------------------------------------
+            */
 
             if (
-                ! is_array($json)
-                ||
-                empty($json['current'])
-                ||
-                empty($json['daily'])
+                $response->successful()
+                &&
+                is_array(
+                    $response->json(
+                        'current'
+                    )
+                )
             ) {
-                Log::warning(
-                    'BaliHiking invalid weather response',
-                    [
-                        'mountain_id' =>
-                            $mountain->id,
 
-                        'response' =>
-                            $json,
-                    ]
+                $weather =
+                    $this->normalizeLiveWeather(
+                        $mountain,
+                        $coordinates,
+                        $response->json()
+                    );
+
+
+                Cache::put(
+                    $cacheKey,
+                    $weather,
+                    now()->addMinutes(
+                        self::CACHE_MINUTES
+                    )
                 );
 
-                return $this->stale(
-                    $staleKey
-                );
+
+                return $weather;
             }
 
 
-            $weather =
-                $this->normalize(
-                    $mountain,
-                    $coordinate,
-                    $json
-                );
-
-
             /*
             |--------------------------------------------------------------------------
-            | CACHE TERBARU
+            | HTTP ERROR
             |--------------------------------------------------------------------------
             */
 
-            Cache::put(
-                $cacheKey,
-                $weather,
-                now()->addMinutes(
-                    self::WEATHER_CACHE_MINUTES
-                )
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CACHE CADANGAN
-            |--------------------------------------------------------------------------
-            */
-
-            Cache::put(
-                $staleKey,
-                $weather,
-                now()->addDays(
-                    self::STALE_WEATHER_DAYS
-                )
-            );
-
-
-            return $weather;
-
-        } catch (Throwable $e) {
-            Log::error(
-                'BaliHiking forecast exception',
+            Log::warning(
+                'BaliHiking weather API unavailable',
                 [
+
                     'mountain_id' =>
                         $mountain->id,
 
-                    'mountain_name' =>
-                        $mountain->name,
+                    'status' =>
+                        $response->status(),
 
-                    'message' =>
-                        $e->getMessage(),
-
-                    'class' =>
-                        get_class($e),
                 ]
             );
 
+        } catch (
+            Throwable $exception
+        ) {
 
-            return $this->stale(
-                $staleKey
-            );
-        }
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | RESOLVE COORDINATE
-    |--------------------------------------------------------------------------
-    */
-
-    public function resolveCoordinates(
-        Mountain $mountain,
-        bool $forceRefresh = false
-    ): ?array {
-        /*
-        |--------------------------------------------------------------------------
-        | 1. DATABASE
-        |--------------------------------------------------------------------------
-        */
-
-        $databaseCoordinate =
-            $this->databaseCoordinates(
-                $mountain
-            );
-
-
-        if ($databaseCoordinate) {
-            return $databaseCoordinate;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2. PRESET BALI
-        |--------------------------------------------------------------------------
-        */
-
-        $preset =
-            $this->presetCoordinates(
-                $mountain
-            );
-
-
-        if ($preset) {
             /*
             |--------------------------------------------------------------------------
-            | Opsional simpan hasil ke database jika kolom tersedia.
+            | SSL / INTERNET / DNS ERROR
             |--------------------------------------------------------------------------
             */
 
-            $this->saveCoordinatesIfAvailable(
-                $mountain,
-                $preset
-            );
-
-
-            return $preset;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3. CACHE GEOCODING
-        |--------------------------------------------------------------------------
-        */
-
-        $cacheKey =
-            $this->coordinateCacheKey(
-                $mountain
-            );
-
-
-        if (! $forceRefresh) {
-            $cached =
-                Cache::get(
-                    $cacheKey
-                );
-
-
-            if (
-                is_array($cached)
-                &&
-                isset(
-                    $cached['latitude'],
-                    $cached['longitude']
-                )
-            ) {
-                return $cached;
-            }
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. GEOCODING
-        |--------------------------------------------------------------------------
-        */
-
-        foreach (
-            $this->geocodingQueries(
-                $mountain
-            )
-            as
-            $query
-        ) {
-            $result =
-                $this->geocode(
-                    $mountain,
-                    $query
-                );
-
-
-            if (! $result) {
-                continue;
-            }
-
-
-            Cache::put(
-                $cacheKey,
-                $result,
-                now()->addDays(
-                    self::COORDINATE_CACHE_DAYS
-                )
-            );
-
-
-            $this->saveCoordinatesIfAvailable(
-                $mountain,
-                $result
-            );
-
-
-            return $result;
-        }
-
-
-        return null;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATABASE COORDINATE
-    |--------------------------------------------------------------------------
-    */
-
-    private function databaseCoordinates(
-        Mountain $mountain
-    ): ?array {
-        if (
-            ! Schema::hasColumn(
-                $mountain->getTable(),
-                'latitude'
-            )
-            ||
-            ! Schema::hasColumn(
-                $mountain->getTable(),
-                'longitude'
-            )
-        ) {
-            return null;
-        }
-
-
-        $latitude =
-            $mountain->getAttribute(
-                'latitude'
-            );
-
-        $longitude =
-            $mountain->getAttribute(
-                'longitude'
-            );
-
-
-        if (
-            ! is_numeric($latitude)
-            ||
-            ! is_numeric($longitude)
-        ) {
-            return null;
-        }
-
-
-        return [
-            'latitude' =>
-                (float) $latitude,
-
-            'longitude' =>
-                (float) $longitude,
-
-            'source' =>
-                'database',
-
-            'resolved_name' =>
-                $mountain->name,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PRESET
-    |--------------------------------------------------------------------------
-    */
-
-    private function presetCoordinates(
-        Mountain $mountain
-    ): ?array {
-        $name =
-            $this->normalizeName(
-                $mountain->name
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | EXACT
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            isset(
-                self::BALI_MOUNTAINS[
-                    $name
-                ]
-            )
-        ) {
-            return array_merge(
-                self::BALI_MOUNTAINS[
-                    $name
-                ],
+            Log::warning(
+                'BaliHiking weather API connection failed',
                 [
-                    'source' =>
-                        'bali-preset',
 
-                    'resolved_name' =>
+                    'mountain_id' =>
+                        $mountain->id,
+
+                    'mountain' =>
                         $mountain->name,
+
+                    'exception' =>
+                        get_class(
+                            $exception
+                        ),
+
+                    'message' =>
+                        $exception
+                            ->getMessage(),
+
                 ]
             );
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | REMOVE PREFIX
+        | OFFLINE FALLBACK
         |--------------------------------------------------------------------------
         */
 
-        $withoutPrefix =
-            trim(
-                preg_replace(
-                    '/^(gunung|bukit)\s+/i',
-                    '',
-                    $name
-                )
-                ??
-                $name
+        $fallback =
+            $this->offlineWeather(
+                $mountain,
+                $coordinates
             );
 
 
-        foreach (
-            self::BALI_MOUNTAINS
-            as
-            $key =>
-            $coordinate
-        ) {
-            $keyWithoutPrefix =
-                trim(
-                    preg_replace(
-                        '/^(gunung|bukit)\s+/i',
-                        '',
-                        $key
-                    )
-                    ??
-                    $key
-                );
-
-
-            if (
-                $withoutPrefix
-                ===
-                $keyWithoutPrefix
-            ) {
-                return array_merge(
-                    $coordinate,
-                    [
-                        'source' =>
-                            'bali-preset',
-
-                        'resolved_name' =>
-                            $mountain->name,
-                    ]
-                );
-            }
-        }
-
-
-        return null;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | NORMALIZE NAME
-    |--------------------------------------------------------------------------
-    */
-
-    private function normalizeName(
-        mixed $value
-    ): string {
-        return Str::of(
-            (string) $value
-        )
-            ->lower()
-            ->ascii()
-            ->replaceMatches(
-                '/[^a-z0-9\s]/',
-                ' '
-            )
-            ->squish()
-            ->toString();
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GEOCODING QUERY
-    |--------------------------------------------------------------------------
-    */
-
-    private function geocodingQueries(
-        Mountain $mountain
-    ): array {
-        $name =
-            trim(
-                (string)
-                $mountain->name
-            );
-
-
-        $location =
-            $this->location(
-                $mountain
-            );
-
-
-        $simpleName =
-            trim(
-                preg_replace(
-                    '/^(gunung|bukit)\s+/i',
-                    '',
-                    $name
-                )
-                ??
-                $name
-            );
-
-
-        $queries = [
-
-            "{$name}, {$location}",
-
-            "{$name}, Bali",
-
-            "{$name}, Bali, Indonesia",
-
-            "{$simpleName}, Bali",
-
-            "{$simpleName}, Indonesia",
-
-            $name,
-
-            $simpleName,
-
-        ];
-
-
-        return array_values(
-            array_unique(
-                array_filter(
-                    array_map(
-                        'trim',
-                        $queries
-                    )
-                )
+        Cache::put(
+            $cacheKey,
+            $fallback,
+            now()->addMinutes(
+                10
             )
         );
+
+
+        return $fallback;
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | GEOCODE
+    | RESOLVE COORDINATES
     |--------------------------------------------------------------------------
     */
 
-    private function geocode(
-        Mountain $mountain,
-        string $query
-    ): ?array {
-        try {
-            $response =
-                Http::acceptJson()
-                    ->connectTimeout(8)
-                    ->timeout(15)
-                    ->retry(
-                        1,
-                        350,
-                        throw: false
-                    )
-                    ->get(
-                        self::GEOCODING_URL,
-                        [
-                            'name' =>
-                                $query,
+    private function resolveCoordinates(
+        Mountain $mountain
+    ): array {
+        /*
+        |--------------------------------------------------------------------------
+        | DATABASE FIRST
+        |--------------------------------------------------------------------------
+        */
 
-                            'count' =>
-                                10,
-
-                            'language' =>
-                                'id',
-
-                            'format' =>
-                                'json',
-
-                            'countryCode' =>
-                                'ID',
-                        ]
-                    );
-
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-
-            $results =
-                $response->json(
-                    'results',
-                    []
-                );
-
-
-            if (
-                ! is_array($results)
-                ||
-                empty($results)
-            ) {
-                return null;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Prioritaskan Bali
-            |--------------------------------------------------------------------------
-            */
-
-            $selected =
-                collect(
-                    $results
-                )
-                    ->sortByDesc(
-                        function (
-                            array $item
-                        ): int {
-                            $score = 0;
-
-
-                            $countryCode =
-                                strtoupper(
-                                    (string)
-                                    (
-                                        $item[
-                                            'country_code'
-                                        ]
-                                        ??
-                                        ''
-                                    )
-                                );
-
-
-                            $admin =
-                                strtolower(
-                                    (
-                                        $item[
-                                            'admin1'
-                                        ]
-                                        ??
-                                        ''
-                                    )
-                                    .
-                                    ' '
-                                    .
-                                    (
-                                        $item[
-                                            'admin2'
-                                        ]
-                                        ??
-                                        ''
-                                    )
-                                );
-
-
-                            if (
-                                $countryCode
-                                ===
-                                'ID'
-                            ) {
-                                $score += 100;
-                            }
-
-
-                            if (
-                                str_contains(
-                                    $admin,
-                                    'bali'
-                                )
-                            ) {
-                                $score += 200;
-                            }
-
-
-                            return $score;
-                        }
-                    )
-                    ->first();
-
-
-            if (
-                ! is_array($selected)
-                ||
-                ! isset(
-                    $selected['latitude'],
-                    $selected['longitude']
-                )
-            ) {
-                return null;
-            }
-
+        if (
+            is_numeric(
+                $mountain->latitude
+            )
+            &&
+            is_numeric(
+                $mountain->longitude
+            )
+        ) {
 
             return [
+
                 'latitude' =>
                     (float)
-                    $selected[
-                        'latitude'
-                    ],
+                    $mountain->latitude,
 
                 'longitude' =>
                     (float)
-                    $selected[
-                        'longitude'
-                    ],
+                    $mountain->longitude,
 
                 'source' =>
-                    'geocoding',
+                    'database',
 
-                'resolved_name' =>
-                    $selected['name']
-                    ??
-                    $query,
             ];
+        }
 
-        } catch (Throwable $e) {
-            Log::warning(
-                'BaliHiking geocoding failed',
-                [
-                    'mountain_id' =>
-                        $mountain->id,
 
-                    'query' =>
-                        $query,
+        /*
+        |--------------------------------------------------------------------------
+        | PRESET
+        |--------------------------------------------------------------------------
+        */
 
-                    'message' =>
-                        $e->getMessage(),
-                ]
+        $key =
+            $this->mountainKey(
+                $mountain->name
             );
 
 
-            return null;
-        }
-    }
+        $preset =
+            self::COORDINATES[
+                $key
+            ]
+            ??
+            null;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SAVE COORDINATE
-    |--------------------------------------------------------------------------
-    */
+        if (
+            is_array(
+                $preset
+            )
+        ) {
 
-    private function saveCoordinatesIfAvailable(
-        Mountain $mountain,
-        array $coordinate
-    ): void {
-        try {
-            if (
-                ! Schema::hasColumn(
-                    $mountain->getTable(),
-                    'latitude'
-                )
-                ||
-                ! Schema::hasColumn(
-                    $mountain->getTable(),
-                    'longitude'
-                )
-            ) {
-                return;
-            }
+            return [
 
-
-            if (
-                is_numeric(
-                    $mountain->latitude
-                )
-                &&
-                is_numeric(
-                    $mountain->longitude
-                )
-            ) {
-                return;
-            }
-
-
-            $mountain->forceFill([
                 'latitude' =>
-                    $coordinate[
-                        'latitude'
-                    ],
+                    $preset[0],
 
                 'longitude' =>
-                    $coordinate[
-                        'longitude'
-                    ],
-            ]);
+                    $preset[1],
 
+                'source' =>
+                    'bali-preset',
 
-            $mountain->saveQuietly();
-
-        } catch (Throwable $e) {
-            Log::warning(
-                'Cannot save mountain coordinate',
-                [
-                    'mountain_id' =>
-                        $mountain->id,
-
-                    'message' =>
-                        $e->getMessage(),
-                ]
-            );
+            ];
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENERIC BALI
+        |--------------------------------------------------------------------------
+        |
+        | Gunung baru tetap tidak menyebabkan 503.
+        |--------------------------------------------------------------------------
+        */
+
+        return [
+
+            'latitude' =>
+                -8.4095,
+
+            'longitude' =>
+                115.1889,
+
+            'source' =>
+                'bali-default',
+
+        ];
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | NORMALIZE WEATHER
+    | NORMALIZE LIVE WEATHER
     |--------------------------------------------------------------------------
     */
 
-    private function normalize(
+    private function normalizeLiveWeather(
         Mountain $mountain,
-        array $coordinate,
-        array $json
+        array $coordinates,
+        array $raw
     ): array {
         $current =
-            $json['current']
-            ??
-            [];
-
-
-        $daily =
-            $json['daily']
+            $raw['current']
             ??
             [];
 
@@ -1101,126 +598,25 @@ class MountainWeatherService
                 null;
 
 
-        $forecast = [];
-
-
-        foreach (
-            $daily['time']
-            ??
-            []
-            as
-            $index =>
-            $date
-        ) {
-            $code =
-                isset(
-                    $daily[
-                        'weather_code'
-                    ][$index]
-                )
-                    ?
-                    (int)
-                    $daily[
-                        'weather_code'
-                    ][$index]
-                    :
-                    null;
-
-
-            $forecast[] = [
-
-                'date' =>
-                    $date,
-
-                'weather_code' =>
-                    $code,
-
-                'condition' =>
-                    $this->weatherLabel(
-                        $code
-                    ),
-
-                'icon' =>
-                    $this->weatherIcon(
-                        $code
-                    ),
-
-                'temperature_max' =>
-                    $this->number(
-                        $daily[
-                            'temperature_2m_max'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'temperature_min' =>
-                    $this->number(
-                        $daily[
-                            'temperature_2m_min'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'precipitation_probability' =>
-                    $this->number(
-                        $daily[
-                            'precipitation_probability_max'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'precipitation_sum' =>
-                    $this->number(
-                        $daily[
-                            'precipitation_sum'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'wind_speed_max' =>
-                    $this->number(
-                        $daily[
-                            'wind_speed_10m_max'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'wind_direction' =>
-                    $this->number(
-                        $daily[
-                            'wind_direction_10m_dominant'
-                        ][$index]
-                        ??
-                        null
-                    ),
-
-                'sunrise' =>
-                    $daily[
-                        'sunrise'
-                    ][$index]
-                    ??
-                    null,
-
-                'sunset' =>
-                    $daily[
-                        'sunset'
-                    ][$index]
-                    ??
-                    null,
-
-            ];
-        }
-
-
         return [
 
             'success' =>
                 true,
+
+            /*
+            |--------------------------------------------------------------------------
+            | REAL DATA
+            |--------------------------------------------------------------------------
+            */
+
+            'is_demo' =>
+                false,
+
+            'source' =>
+                'open-meteo',
+
+            'source_label' =>
+                'Data cuaca aktual',
 
             'mountain_id' =>
                 $mountain->id,
@@ -1233,26 +629,8 @@ class MountainWeatherService
                     $mountain
                 ),
 
-            'coordinates' => [
-
-                'latitude' =>
-                    $coordinate[
-                        'latitude'
-                    ],
-
-                'longitude' =>
-                    $coordinate[
-                        'longitude'
-                    ],
-
-                'source' =>
-                    $coordinate[
-                        'source'
-                    ]
-                    ??
-                    'unknown',
-
-            ],
+            'coordinates' =>
+                $coordinates,
 
             'current' => [
 
@@ -1327,22 +705,27 @@ class MountainWeatherService
                         $weatherCode
                     ),
 
-                'icon' =>
-                    $this->weatherIcon(
+                /*
+                |--------------------------------------------------------------------------
+                | GAMBAR SVG
+                |--------------------------------------------------------------------------
+                */
+
+                'icon_url' =>
+                    $this->weatherImage(
                         $weatherCode
                     ),
 
             ],
 
             'forecast' =>
-                $forecast,
-
-            'updated_at' =>
-                now()
-                    ->timezone(
-                        'Asia/Makassar'
-                    )
-                    ->toIso8601String(),
+                $this->normalizeForecast(
+                    $raw[
+                        'daily'
+                    ]
+                    ??
+                    []
+                ),
 
             'updated_at_label' =>
                 now()
@@ -1353,13 +736,416 @@ class MountainWeatherService
                         'd M Y, H:i'
                     ),
 
-            'cached' =>
-                false,
+        ];
+    }
 
-            'stale' =>
-                false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | OFFLINE WEATHER
+    |--------------------------------------------------------------------------
+    */
+
+    private function offlineWeather(
+        Mountain $mountain,
+        array $coordinates
+    ): array {
+        $key =
+            $this->mountainKey(
+                $mountain->name
+            );
+
+
+        $preset =
+            self::OFFLINE_PRESETS[
+                $key
+            ]
+            ??
+            [
+
+                'temperature' =>
+                    19,
+
+                'apparent_temperature' =>
+                    18,
+
+                'humidity' =>
+                    80,
+
+                'precipitation' =>
+                    0,
+
+                'cloud_cover' =>
+                    50,
+
+                'wind_speed' =>
+                    8,
+
+                'wind_direction' =>
+                    110,
+
+                'weather_code' =>
+                    2,
+
+            ];
+
+
+        $code =
+            (int)
+            $preset[
+                'weather_code'
+            ];
+
+
+        return [
+
+            'success' =>
+                true,
+
+            /*
+            |--------------------------------------------------------------------------
+            | DEMO MARKER
+            |--------------------------------------------------------------------------
+            */
+
+            'is_demo' =>
+                true,
+
+            'source' =>
+                'offline-demo',
+
+            'source_label' =>
+                'Mode Offline / Data Demo',
+
+            'mountain_id' =>
+                $mountain->id,
+
+            'mountain_name' =>
+                $mountain->name,
+
+            'location' =>
+                $this->location(
+                    $mountain
+                ),
+
+            'coordinates' =>
+                $coordinates,
+
+            'current' => [
+
+                'temperature' =>
+                    $preset[
+                        'temperature'
+                    ],
+
+                'apparent_temperature' =>
+                    $preset[
+                        'apparent_temperature'
+                    ],
+
+                'humidity' =>
+                    $preset[
+                        'humidity'
+                    ],
+
+                'precipitation' =>
+                    $preset[
+                        'precipitation'
+                    ],
+
+                'cloud_cover' =>
+                    $preset[
+                        'cloud_cover'
+                    ],
+
+                'wind_speed' =>
+                    $preset[
+                        'wind_speed'
+                    ],
+
+                'wind_direction' =>
+                    $preset[
+                        'wind_direction'
+                    ],
+
+                'weather_code' =>
+                    $code,
+
+                'condition' =>
+                    $this->weatherLabel(
+                        $code
+                    ),
+
+                /*
+                |--------------------------------------------------------------------------
+                | LOCAL IMAGE
+                |--------------------------------------------------------------------------
+                */
+
+                'icon_url' =>
+                    $this->weatherImage(
+                        $code
+                    ),
+
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | DEMO FORECAST 5 DAYS
+            |--------------------------------------------------------------------------
+            */
+
+            'forecast' =>
+                $this->offlineForecast(
+                    $preset
+                ),
+
+            'updated_at_label' =>
+                'Mode Offline',
 
         ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | OFFLINE FORECAST
+    |--------------------------------------------------------------------------
+    */
+
+    private function offlineForecast(
+        array $current
+    ): array {
+        $codes = [
+
+            $current[
+                'weather_code'
+            ],
+
+            2,
+
+            61,
+
+            1,
+
+            3,
+
+        ];
+
+
+        $forecast = [];
+
+
+        for (
+            $i = 0;
+            $i < 5;
+            $i++
+        ) {
+
+            $code =
+                (int)
+                $codes[$i];
+
+
+            $temperature =
+                (float)
+                $current[
+                    'temperature'
+                ];
+
+
+            $forecast[] = [
+
+                'date' =>
+                    now()
+                        ->timezone(
+                            'Asia/Makassar'
+                        )
+                        ->addDays(
+                            $i
+                        )
+                        ->format(
+                            'Y-m-d'
+                        ),
+
+                'weather_code' =>
+                    $code,
+
+                'condition' =>
+                    $this->weatherLabel(
+                        $code
+                    ),
+
+                'icon_url' =>
+                    $this->weatherImage(
+                        $code
+                    ),
+
+                'temperature_max' =>
+                    round(
+                        $temperature
+                        +
+                        2
+                        +
+                        ($i % 2),
+                        1
+                    ),
+
+                'temperature_min' =>
+                    round(
+                        $temperature
+                        -
+                        2
+                        -
+                        ($i % 2),
+                        1
+                    ),
+
+                'precipitation_probability' =>
+                    match (
+                        $code
+                    ) {
+
+                        61,
+                        63,
+                        65 =>
+                            70,
+
+                        3 =>
+                            35,
+
+                        2 =>
+                            25,
+
+                        default =>
+                            10,
+
+                    },
+
+                'precipitation_sum' =>
+                    match (
+                        $code
+                    ) {
+
+                        61 =>
+                            1.5,
+
+                        63 =>
+                            3.0,
+
+                        65 =>
+                            6.0,
+
+                        default =>
+                            0,
+
+                    },
+
+            ];
+        }
+
+
+        return $forecast;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALIZE LIVE FORECAST
+    |--------------------------------------------------------------------------
+    */
+
+    private function normalizeForecast(
+        array $daily
+    ): array {
+        $result = [];
+
+
+        foreach (
+            $daily[
+                'time'
+            ]
+            ??
+            []
+            as
+            $index =>
+            $date
+        ) {
+
+            $code =
+                isset(
+                    $daily[
+                        'weather_code'
+                    ][$index]
+                )
+                    ?
+                    (int)
+                    $daily[
+                        'weather_code'
+                    ][$index]
+                    :
+                    null;
+
+
+            $result[] = [
+
+                'date' =>
+                    $date,
+
+                'weather_code' =>
+                    $code,
+
+                'condition' =>
+                    $this->weatherLabel(
+                        $code
+                    ),
+
+                'icon_url' =>
+                    $this->weatherImage(
+                        $code
+                    ),
+
+                'temperature_max' =>
+                    $this->number(
+                        $daily[
+                            'temperature_2m_max'
+                        ][$index]
+                        ??
+                        null
+                    ),
+
+                'temperature_min' =>
+                    $this->number(
+                        $daily[
+                            'temperature_2m_min'
+                        ][$index]
+                        ??
+                        null
+                    ),
+
+                'precipitation_probability' =>
+                    $this->number(
+                        $daily[
+                            'precipitation_probability_max'
+                        ][$index]
+                        ??
+                        null
+                    ),
+
+                'precipitation_sum' =>
+                    $this->number(
+                        $daily[
+                            'precipitation_sum'
+                        ][$index]
+                        ??
+                        null
+                    ),
+
+            ];
+        }
+
+
+        return $result;
     }
 
 
@@ -1369,12 +1155,13 @@ class MountainWeatherService
     |--------------------------------------------------------------------------
     */
 
-    public function weatherLabel(
+    private function weatherLabel(
         ?int $code
     ): string {
         return match (
             $code
         ) {
+
             0 =>
                 'Cerah',
 
@@ -1396,10 +1183,6 @@ class MountainWeatherService
             55 =>
                 'Gerimis',
 
-            56,
-            57 =>
-                'Gerimis Beku',
-
             61 =>
                 'Hujan Ringan',
 
@@ -1409,101 +1192,299 @@ class MountainWeatherService
             65 =>
                 'Hujan Lebat',
 
-            66,
-            67 =>
-                'Hujan Beku',
-
-            71,
-            73,
-            75,
-            77 =>
-                'Salju',
-
-            80 =>
-                'Hujan Lokal Ringan',
-
-            81 =>
-                'Hujan Lokal Sedang',
-
+            80,
+            81,
             82 =>
-                'Hujan Lokal Lebat',
+                'Hujan Lokal',
 
-            85,
-            86 =>
-                'Hujan Salju',
-
-            95 =>
-                'Badai Petir',
-
+            95,
             96,
             99 =>
-                'Badai Petir & Hujan Es',
+                'Badai Petir',
 
             default =>
-                'Cuaca Tidak Diketahui',
+                'Cuaca Pegunungan',
+
         };
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | WEATHER ICON
+    | WEATHER IMAGE
+    |--------------------------------------------------------------------------
+    |
+    | Menghasilkan gambar SVG data URI.
+    |
+    | Tidak membutuhkan:
+    | - CDN
+    | - API image
+    | - file PNG
+    | - internet
     |--------------------------------------------------------------------------
     */
 
-    public function weatherIcon(
+    private function weatherImage(
         ?int $code
     ): string {
-        return match (
-            $code
-        ) {
-            0 =>
-                '☀️',
+        $type =
+            match (
+                $code
+            ) {
 
-            1,
-            2 =>
-                '🌤️',
+                0 =>
+                    'sunny',
 
-            3 =>
-                '☁️',
+                1,
+                2 =>
+                    'partly',
 
-            45,
-            48 =>
-                '🌫️',
+                3,
+                45,
+                48 =>
+                    'cloud',
 
-            51,
-            53,
-            55,
-            56,
-            57 =>
-                '🌦️',
+                51,
+                53,
+                55,
+                61,
+                63,
+                65,
+                80,
+                81,
+                82 =>
+                    'rain',
 
-            61,
-            63,
-            65,
-            66,
-            67,
-            80,
-            81,
-            82 =>
-                '🌧️',
+                95,
+                96,
+                99 =>
+                    'storm',
 
-            71,
-            73,
-            75,
-            77,
-            85,
-            86 =>
-                '❄️',
+                default =>
+                    'partly',
 
-            95,
-            96,
-            99 =>
-                '⛈️',
+            };
 
-            default =>
-                '🌥️',
-        };
+
+        $svg =
+            match (
+                $type
+            ) {
+
+                'sunny' =>
+                    $this->sunnySvg(),
+
+                'cloud' =>
+                    $this->cloudSvg(),
+
+                'rain' =>
+                    $this->rainSvg(),
+
+                'storm' =>
+                    $this->stormSvg(),
+
+                default =>
+                    $this->partlyCloudySvg(),
+
+            };
+
+
+        return
+            'data:image/svg+xml;base64,'
+            .
+            base64_encode(
+                $svg
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SVG SUNNY
+    |--------------------------------------------------------------------------
+    */
+
+    private function sunnySvg(): string
+    {
+        return <<<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+    <defs>
+        <linearGradient id="sun" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffd54f"/>
+            <stop offset="1" stop-color="#ff9800"/>
+        </linearGradient>
+    </defs>
+
+    <circle cx="80" cy="80" r="34" fill="url(#sun)"/>
+
+    <g stroke="#ffb300" stroke-width="7" stroke-linecap="round">
+        <path d="M80 18v14"/>
+        <path d="M80 128v14"/>
+        <path d="M18 80h14"/>
+        <path d="M128 80h14"/>
+        <path d="M36 36l10 10"/>
+        <path d="M114 114l10 10"/>
+        <path d="M124 36l-10 10"/>
+        <path d="M46 114l-10 10"/>
+    </g>
+</svg>
+SVG;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SVG CLOUD
+    |--------------------------------------------------------------------------
+    */
+
+    private function cloudSvg(): string
+    {
+        return <<<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+    <defs>
+        <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#eef5f8"/>
+            <stop offset="1" stop-color="#aebec7"/>
+        </linearGradient>
+    </defs>
+
+    <path
+        d="M45 112h72c18 0 29-11 29-27
+           0-15-11-27-26-28
+           -5-19-21-31-41-31
+           -24 0-43 17-45 40
+           -15 3-24 13-24 25
+           0 12 10 21 35 21z"
+        fill="url(#cloud)"
+    />
+</svg>
+SVG;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SVG PARTLY CLOUDY
+    |--------------------------------------------------------------------------
+    */
+
+    private function partlyCloudySvg(): string
+    {
+        return <<<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+
+    <circle
+        cx="58"
+        cy="55"
+        r="28"
+        fill="#ffca28"
+    />
+
+    <g stroke="#ffb300" stroke-width="5" stroke-linecap="round">
+        <path d="M58 12v10"/>
+        <path d="M58 88v10"/>
+        <path d="M16 55h10"/>
+        <path d="M90 55h10"/>
+    </g>
+
+    <defs>
+        <linearGradient id="cloud" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f4f8fa"/>
+            <stop offset="1" stop-color="#b0bec5"/>
+        </linearGradient>
+    </defs>
+
+    <path
+        d="M49 119h70c17 0 28-10 28-25
+           0-14-11-25-25-26
+           -6-18-21-29-39-29
+           -23 0-40 16-43 37
+           -14 3-23 12-23 23
+           0 12 10 20 32 20z"
+        fill="url(#cloud)"
+    />
+
+</svg>
+SVG;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SVG RAIN
+    |--------------------------------------------------------------------------
+    */
+
+    private function rainSvg(): string
+    {
+        return <<<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+
+    <path
+        d="M45 94h72c18 0 29-11 29-27
+           0-15-11-27-26-28
+           -5-19-21-31-41-31
+           -24 0-43 17-45 40
+           -15 3-24 13-24 25
+           0 12 10 21 35 21z"
+        fill="#b0bec5"
+    />
+
+    <g
+        stroke="#29b6f6"
+        stroke-width="7"
+        stroke-linecap="round"
+    >
+
+        <path d="M48 110l-7 18"/>
+
+        <path d="M78 110l-7 18"/>
+
+        <path d="M108 110l-7 18"/>
+
+    </g>
+
+</svg>
+SVG;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SVG STORM
+    |--------------------------------------------------------------------------
+    */
+
+    private function stormSvg(): string
+    {
+        return <<<'SVG'
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+
+    <path
+        d="M45 92h72c18 0 29-11 29-27
+           0-15-11-27-26-28
+           -5-19-21-31-41-31
+           -24 0-43 17-45 40
+           -15 3-24 13-24 25
+           0 12 10 21 35 21z"
+        fill="#78909c"
+    />
+
+    <path
+        d="M82 93
+           L62 124
+           H79
+           L69 151
+           L108 111
+           H89
+           L101 93
+           Z"
+        fill="#ffc107"
+    />
+
+</svg>
+SVG;
     }
 
 
@@ -1516,102 +1497,37 @@ class MountainWeatherService
     private function location(
         Mountain $mountain
     ): string {
-        foreach (
-            [
-                'location',
-                'address',
-                'alamat',
-                'lokasi',
-            ]
-            as
-            $attribute
-        ) {
-            $value =
-                $mountain->getAttribute(
-                    $attribute
-                );
+        return
+            filled(
+                $mountain->location
+            )
 
+                ?
 
-            if (
-                is_string($value)
-                &&
-                trim($value) !== ''
-            ) {
-                return trim(
-                    $value
-                );
-            }
-        }
+                $mountain->location
 
+                :
 
-        return 'Bali, Indonesia';
+                'Bali, Indonesia';
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | CACHE KEYS
+    | MOUNTAIN KEY
     |--------------------------------------------------------------------------
     */
 
-    private function weatherCacheKey(
-        Mountain $mountain
+    private function mountainKey(
+        string $name
     ): string {
-        return
-            'balihiking:weather:'
-            .
-            $mountain->id;
-    }
-
-
-    private function staleWeatherCacheKey(
-        Mountain $mountain
-    ): string {
-        return
-            'balihiking:weather:stale:'
-            .
-            $mountain->id;
-    }
-
-
-    private function coordinateCacheKey(
-        Mountain $mountain
-    ): string {
-        return
-            'balihiking:weather:coordinate:'
-            .
-            $mountain->id;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | STALE
-    |--------------------------------------------------------------------------
-    */
-
-    private function stale(
-        string $key
-    ): ?array {
-        $cached =
-            Cache::get(
-                $key
-            );
-
-
-        if (! is_array($cached)) {
-            return null;
-        }
-
-
-        $cached['cached'] =
-            true;
-
-        $cached['stale'] =
-            true;
-
-
-        return $cached;
+        return Str::of(
+            $name
+        )
+            ->lower()
+            ->ascii()
+            ->squish()
+            ->toString();
     }
 
 
@@ -1624,52 +1540,21 @@ class MountainWeatherService
     private function number(
         mixed $value
     ): ?float {
-        if (! is_numeric($value)) {
-            return null;
-        }
+        return
+            is_numeric(
+                $value
+            )
 
+                ?
 
-        return round(
-            (float) $value,
-            1
-        );
-    }
+                round(
+                    (float)
+                    $value,
+                    1
+                )
 
+                :
 
-    /*
-    |--------------------------------------------------------------------------
-    | LOG HTTP
-    |--------------------------------------------------------------------------
-    */
-
-    private function logHttpError(
-        string $context,
-        Response $response,
-        Mountain $mountain
-    ): void {
-        Log::error(
-            'BaliHiking weather '
-            .
-            $context
-            .
-            ' error',
-            [
-                'mountain_id' =>
-                    $mountain->id,
-
-                'mountain_name' =>
-                    $mountain->name,
-
-                'status' =>
-                    $response->status(),
-
-                'body' =>
-                    mb_substr(
-                        $response->body(),
-                        0,
-                        1000
-                    ),
-            ]
-        );
+                null;
     }
 }

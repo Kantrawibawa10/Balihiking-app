@@ -14,9 +14,7 @@ class MountainController extends Controller
 {
     public function __construct(
         protected MountainWeatherService $weatherService
-    ) {
-    }
-
+    ) {}
 
     /*
     |--------------------------------------------------------------------------
@@ -29,48 +27,45 @@ class MountainController extends Controller
     ): View {
         $mountain->load([
 
-            'hikingTrails' =>
-                function (
-                    $query
-                ) {
-                    $query
-                        ->where(
-                            'is_active',
-                            true
-                        )
+            'hikingTrails' => function (
+                $query
+            ) {
+                $query
+                    ->where(
+                        'is_active',
+                        true
+                    )
 
-                        ->withCount(
-                            'checkpoints'
-                        )
+                    ->withCount(
+                        'checkpoints'
+                    )
 
-                        ->with([
-                            'checkpoints' =>
-                                function (
-                                    $checkpointQuery
-                                ) {
-                                    $checkpointQuery
-                                        ->select([
-                                            'id',
-                                            'hiking_trail_id',
-                                            'name',
-                                            'latitude',
-                                            'longitude',
-                                            'elevation_m',
-                                            'type',
-                                        ])
-                                        ->orderBy(
-                                            'id'
-                                        );
-                                },
-                        ])
+                    ->with([
+                        'checkpoints' => function (
+                            $checkpointQuery
+                        ) {
+                            $checkpointQuery
+                                ->select([
+                                    'id',
+                                    'hiking_trail_id',
+                                    'name',
+                                    'latitude',
+                                    'longitude',
+                                    'elevation_m',
+                                    'type',
+                                ])
+                                ->orderBy(
+                                    'id'
+                                );
+                        },
+                    ])
 
-                        ->orderBy(
-                            'name'
-                        );
-                },
+                    ->orderBy(
+                        'name'
+                    );
+            },
 
         ]);
-
 
         return view(
             'pendaki.mountains.show',
@@ -79,7 +74,6 @@ class MountainController extends Controller
             )
         );
     }
-
 
     /*
     |--------------------------------------------------------------------------
@@ -92,6 +86,7 @@ class MountainController extends Controller
         Mountain $mountain
     ): JsonResponse {
         try {
+
             $weather =
                 $this
                     ->weatherService
@@ -102,63 +97,34 @@ class MountainController extends Controller
                         )
                     );
 
-
-            if (! $weather) {
-                return response()->json(
-                    [
-                        'success' =>
-                            false,
-
-                        'message' =>
-                            'Perkiraan cuaca belum tersedia untuk gunung ini.',
-
-                        'mountain' =>
-                            $mountain->name,
-
-                        'hint' =>
-                            app()->isLocal()
-                                ?
-                                'Periksa storage/logs/laravel.log.'
-                                :
-                                null,
-                    ],
-                    503
-                );
-            }
-
-
             return response()->json(
                 $weather
             );
 
-        } catch (Throwable $e) {
-            report(
-                $e
-            );
+        } catch (Throwable $exception) {
 
+            report(
+                $exception
+            );
 
             return response()->json(
                 [
-                    'success' =>
-                        false,
+                    'success' => false,
 
-                    'message' =>
-                        'Terjadi kendala saat mengambil prakiraan cuaca.',
+                    'message' => 'BaliHiking tidak dapat memuat informasi cuaca.',
 
-                    'debug' =>
-                        app()->isLocal()
+                    'debug' => app()->isLocal()
+
                             ?
-                            [
-                                'class' =>
-                                    get_class($e),
 
-                                'message' =>
-                                    $e->getMessage(),
-                            ]
+                            $exception
+                                ->getMessage()
+
                             :
+
                             null,
                 ],
-                503
+                500
             );
         }
     }
