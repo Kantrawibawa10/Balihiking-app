@@ -2,13 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class HikingTrail extends Model
 {
-    protected $table = 'hiking_trails';
+    use HasFactory;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILLABLE
+    |--------------------------------------------------------------------------
+    */
 
     protected $fillable = [
         'mountain_id',
@@ -25,13 +33,39 @@ class HikingTrail extends Model
         'status',
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'distance_km' => 'float',
-        'max_elevation' => 'integer',
-        'min_elevation' => 'integer',
-        'estimated_time_hours' => 'float',
-    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | CASTS
+    |--------------------------------------------------------------------------
+    */
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' =>
+                'boolean',
+
+            'distance_km' =>
+                'decimal:2',
+
+            'estimated_time_hours' =>
+                'decimal:2',
+
+            'max_elevation' =>
+                'integer',
+
+            'min_elevation' =>
+                'integer',
+
+            'map_geojson' =>
+                'array',
+
+            'coordinates' =>
+                'array',
+        ];
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -47,9 +81,10 @@ class HikingTrail extends Model
         );
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | CHECKPOINT
+    | CHECKPOINTS
     |--------------------------------------------------------------------------
     */
 
@@ -60,6 +95,48 @@ class HikingTrail extends Model
             'hiking_trail_id'
         );
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | TRAIL GUIDES
+    |--------------------------------------------------------------------------
+    |
+    | Relasi utama.
+    |
+    */
+
+    public function trailGuides(): HasMany
+    {
+        return $this->hasMany(
+            TrailGuide::class,
+            'hiking_trail_id'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GUIDES ALIAS
+    |--------------------------------------------------------------------------
+    |
+    | Ini sengaja dipertahankan supaya kode seperti:
+    |
+    | $trail->load('guides')
+    | $trail->guides
+    |
+    | tetap dapat berjalan.
+    |
+    */
+
+    public function guides(): HasMany
+    {
+        return $this->hasMany(
+            TrailGuide::class,
+            'hiking_trail_id'
+        );
+    }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -75,6 +152,7 @@ class HikingTrail extends Model
         );
     }
 
+
     /*
     |--------------------------------------------------------------------------
     | USER LOCATIONS
@@ -88,6 +166,7 @@ class HikingTrail extends Model
             'hiking_trail_id'
         );
     }
+
 
     /*
     |--------------------------------------------------------------------------
@@ -103,13 +182,29 @@ class HikingTrail extends Model
         );
     }
 
-    public function guides(): HasMany
+
+    /*
+    |--------------------------------------------------------------------------
+    | ACTIVE GUIDES
+    |--------------------------------------------------------------------------
+    |
+    | Bisa digunakan bila nanti ingin mengambil panduan aktif saja.
+    |
+    */
+
+    public function activeGuides(): HasMany
     {
-        return $this->hasMany(
-            TrailGuide::class,
-            'hiking_trail_id'
-        )
-            ->orderBy('sort_order')
-            ->orderBy('id');
+        return $this
+            ->hasMany(
+                TrailGuide::class,
+                'hiking_trail_id'
+            )
+            ->where(
+                'is_active',
+                true
+            )
+            ->orderBy(
+                'sort_order'
+            );
     }
 }

@@ -8,11 +8,11 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable([
     'name',
@@ -65,8 +65,6 @@ class User extends Authenticatable implements FilamentUser
     | ROLE HELPERS
     |--------------------------------------------------------------------------
     */
-
-    
 
     public function isTrailManager(): bool
     {
@@ -224,4 +222,10 @@ class User extends Authenticatable implements FilamentUser
         );
     }
 
+    public function simaksis(): HasMany
+    {
+        return $this->hasMany(
+            Simaksi::class
+        );
+    }
 }

@@ -6,17 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Mountain;
 use App\Services\MountainWeatherService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Throwable;
 
 class MountainController extends Controller
 {
-    /*
-    |--------------------------------------------------------------------------
-    | WEATHER SERVICE
-    |--------------------------------------------------------------------------
-    */
-
     public function __construct(
         protected MountainWeatherService $weatherService
     ) {
@@ -25,72 +20,57 @@ class MountainController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | SHOW MOUNTAIN
+    | DETAIL GUNUNG
     |--------------------------------------------------------------------------
     */
 
     public function show(
         Mountain $mountain
     ): View {
-        /*
-        |--------------------------------------------------------------------------
-        | LOAD ACTIVE TRAILS
-        |--------------------------------------------------------------------------
-        */
-
         $mountain->load([
-            'hikingTrails' => function (
-                $query
-            ) {
-                $query
-                    ->where(
-                        'is_active',
-                        true
-                    )
 
-                    ->withCount(
-                        'checkpoints'
-                    )
+            'hikingTrails' =>
+                function (
+                    $query
+                ) {
+                    $query
+                        ->where(
+                            'is_active',
+                            true
+                        )
 
-                    ->with([
-                        'checkpoints' => function (
-                            $checkpointQuery
-                        ) {
-                            $checkpointQuery
-                                ->select([
-                                    'id',
-                                    'hiking_trail_id',
-                                    'name',
-                                    'latitude',
-                                    'longitude',
-                                    'elevation_m',
-                                    'type',
-                                ])
-                                ->orderBy(
-                                    'id'
-                                );
-                        },
-                    ])
+                        ->withCount(
+                            'checkpoints'
+                        )
 
-                    ->orderBy(
-                        'name'
-                    );
-            },
+                        ->with([
+                            'checkpoints' =>
+                                function (
+                                    $checkpointQuery
+                                ) {
+                                    $checkpointQuery
+                                        ->select([
+                                            'id',
+                                            'hiking_trail_id',
+                                            'name',
+                                            'latitude',
+                                            'longitude',
+                                            'elevation_m',
+                                            'type',
+                                        ])
+                                        ->orderBy(
+                                            'id'
+                                        );
+                                },
+                        ])
+
+                        ->orderBy(
+                            'name'
+                        );
+                },
+
         ]);
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Jangan paksa weather request pada render awal.
-        |--------------------------------------------------------------------------
-        |
-        | Frontend akan mengambilnya melalui endpoint AJAX:
-        |
-        | /pendaki/gunung/{mountain}/weather
-        |
-        | Jadi detail gunung tetap cepat dibuka.
-        |--------------------------------------------------------------------------
-        */
 
         return view(
             'pendaki.mountains.show',
@@ -103,43 +83,25 @@ class MountainController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | WEATHER
+    | WEATHER JSON
     |--------------------------------------------------------------------------
     */
 
     public function weather(
+        Request $request,
         Mountain $mountain
     ): JsonResponse {
         try {
-            /*
-            |--------------------------------------------------------------------------
-            | Tombol "Perbarui"
-            |--------------------------------------------------------------------------
-            |
-            | ?refresh=1 akan memaksa request baru.
-            |--------------------------------------------------------------------------
-            */
-
-            $forceRefresh =
-                request()->boolean(
-                    'refresh'
-                );
-
-
             $weather =
                 $this
                     ->weatherService
                     ->getWeather(
                         $mountain,
-                        $forceRefresh
+                        $request->boolean(
+                            'refresh'
+                        )
                     );
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | WEATHER UNAVAILABLE
-            |--------------------------------------------------------------------------
-            */
 
             if (! $weather) {
                 return response()->json(
@@ -150,10 +112,13 @@ class MountainController extends Controller
                         'message' =>
                             'Perkiraan cuaca belum tersedia untuk gunung ini.',
 
-                        'debug_hint' =>
+                        'mountain' =>
+                            $mountain->name,
+
+                        'hint' =>
                             app()->isLocal()
                                 ?
-                                'Periksa storage/logs/laravel.log untuk detail kegagalan geocoding/weather API.'
+                                'Periksa storage/logs/laravel.log.'
                                 :
                                 null,
                     ],
@@ -162,19 +127,13 @@ class MountainController extends Controller
             }
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | SUCCESS
-            |--------------------------------------------------------------------------
-            */
-
             return response()->json(
                 $weather
             );
 
-        } catch (Throwable $exception) {
+        } catch (Throwable $e) {
             report(
-                $exception
+                $e
             );
 
 
@@ -190,13 +149,11 @@ class MountainController extends Controller
                         app()->isLocal()
                             ?
                             [
-                                'exception' =>
-                                    get_class(
-                                        $exception
-                                    ),
+                                'class' =>
+                                    get_class($e),
 
                                 'message' =>
-                                    $exception->getMessage(),
+                                    $e->getMessage(),
                             ]
                             :
                             null,

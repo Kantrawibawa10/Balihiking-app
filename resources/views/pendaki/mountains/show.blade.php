@@ -2618,7 +2618,7 @@
         const weatherEndpoint =
             @json(
                 route(
-                    'pendaki.mountains.weather',
+                    'pendaki.mountain.weather',
                     $mountain
                 )
             );

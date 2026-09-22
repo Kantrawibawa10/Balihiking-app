@@ -86,4 +86,11 @@ class Mountain extends Model
             'mountain_user'
         )->withTimestamps();
     }
+
+    public function simaksis(): HasMany
+    {
+        return $this->hasMany(
+            Simaksi::class
+        );
+    }
 }

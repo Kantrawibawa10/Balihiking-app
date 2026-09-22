@@ -1483,7 +1483,7 @@
                     @foreach ($mountains as $mountain)
 
                         <a
-                            href="{{ route('pendaki.mountains.show', $mountain) }}"
+                            href="{{ route('pendaki.mountain.show', $mountain) }}"
                             class="
                                 group
                                 flex

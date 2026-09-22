@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Pendaki;
 
 use App\Http\Controllers\Controller;
+use App\Models\Mountain;
 use App\Models\Simaksi;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SimaksiController extends Controller
@@ -21,125 +21,36 @@ class SimaksiController extends Controller
     public function index(
         Request $request
     ): View {
-
-        $status =
-            $request->string('status')
-                ->toString();
-
-        if (
-            !in_array(
-                $status,
-                [
-                    'all',
-                    'pending',
-                    'approved',
-                    'rejected',
-                ],
-                true
-            )
-        ) {
-
-            $status = 'all';
-
-        }
+        $user =
+            $request->user();
 
 
-        $query = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            );
+        $simaksis =
+            Simaksi::query()
+                ->where(
+                    'user_id',
+                    $user->id
+                )
+                ->with(
+                    'mountain'
+                )
+                ->latest()
+                ->get();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER STATUS
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $status !== 'all'
-        ) {
-
-            $query->where(
-                'status',
-                $status
-            );
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DATA
-        |--------------------------------------------------------------------------
-        */
-
-        $simaksis = $query
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SUMMARY
-        |--------------------------------------------------------------------------
-        */
-
-        $totalSimaksi = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
-            ->count();
-
-
-        $totalPending = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
-            ->where(
-                'status',
-                'pending'
-            )
-            ->count();
-
-
-        $totalApproved = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
-            ->where(
-                'status',
-                'approved'
-            )
-            ->count();
-
-
-        $totalRejected = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
-            ->where(
-                'status',
-                'rejected'
-            )
-            ->count();
+        $mountains =
+            Mountain::query()
+                ->orderBy(
+                    'name'
+                )
+                ->get();
 
 
         return view(
             'pendaki.simaksi',
             compact(
                 'simaksis',
-                'status',
-                'totalSimaksi',
-                'totalPending',
-                'totalApproved',
-                'totalRejected',
+                'mountains'
             )
         );
     }
@@ -153,20 +64,20 @@ class SimaksiController extends Controller
 
     public function store(
         Request $request
-    ): JsonResponse|RedirectResponse {
+    ): RedirectResponse {
+        $validated =
+            $request->validate([
 
-        $validated = $request->validate(
-            [
+                'mountain_id' => [
+                    'nullable',
+                    'integer',
+                    'exists:mountains,id',
+                ],
+
                 'gunung' => [
-                    'required',
+                    'nullable',
                     'string',
-                    'max:150',
-
-                    Rule::in([
-                        'Gunung Agung',
-                        'Gunung Batur',
-                        'Gunung Abang',
-                    ]),
+                    'max:255',
                 ],
 
                 'tanggal_naik' => [
@@ -191,164 +102,155 @@ class SimaksiController extends Controller
                     'required',
                     'string',
                     'max:30',
-                    'regex:/^[0-9+\-\s]+$/',
                 ],
-            ],
-            [
-                'gunung.required' =>
-                    'Gunung wajib dipilih.',
 
-                'gunung.in' =>
-                    'Gunung yang dipilih tidak valid.',
+            ]);
 
-                'tanggal_naik.required' =>
-                    'Tanggal naik wajib dipilih.',
 
-                'tanggal_turun.required' =>
-                    'Tanggal turun wajib dipilih.',
+        /*
+        |--------------------------------------------------------------------------
+        | RESOLVE MOUNTAIN
+        |--------------------------------------------------------------------------
+        */
 
-                'tanggal_turun.after_or_equal' =>
-                    'Tanggal turun tidak boleh lebih awal dari tanggal naik.',
+        $mountain =
+            null;
 
-                'jumlah_anggota.required' =>
-                    'Jumlah anggota wajib diisi.',
 
-                'jumlah_anggota.min' =>
-                    'Jumlah anggota minimal 1 orang.',
+        if (
+            ! empty(
+                $validated[
+                    'mountain_id'
+                ]
+            )
+        ) {
+            $mountain =
+                Mountain::query()
+                    ->find(
+                        $validated[
+                            'mountain_id'
+                        ]
+                    );
+        }
 
-                'jumlah_anggota.max' =>
-                    'Jumlah anggota maksimal 100 orang.',
 
-                'nomor_darurat.required' =>
-                    'Nomor darurat wajib diisi.',
+        /*
+        |--------------------------------------------------------------------------
+        | COMPATIBILITY FRONTEND LAMA
+        |--------------------------------------------------------------------------
+        |
+        | Frontend lama mengirim:
+        |
+        | gunung = "Gunung Agung"
+        |--------------------------------------------------------------------------
+        */
 
-                'nomor_darurat.regex' =>
-                    'Format nomor darurat tidak valid.',
-            ]
+        if (
+            ! $mountain
+            &&
+            ! empty(
+                $validated[
+                    'gunung'
+                ]
+            )
+        ) {
+            $mountain =
+                Mountain::query()
+                    ->where(
+                        'name',
+                        $validated[
+                            'gunung'
+                        ]
+                    )
+                    ->first();
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE CODE
+        |--------------------------------------------------------------------------
+        */
+
+        do {
+            $code =
+                'SMK-'
+                .
+                now()->format(
+                    'Ymd'
+                )
+                .
+                '-'
+                .
+                strtoupper(
+                    Str::random(
+                        6
+                    )
+                );
+        } while (
+            Simaksi::query()
+                ->where(
+                    'code',
+                    $code
+                )
+                ->exists()
         );
 
 
         /*
         |--------------------------------------------------------------------------
-        | OPTIONAL DUPLICATE CHECK
+        | CREATE SIMAKSI
         |--------------------------------------------------------------------------
         */
 
-        $duplicate = Simaksi::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
-            ->where(
-                'gunung',
-                $validated['gunung']
-            )
-            ->whereDate(
-                'tanggal_naik',
-                $validated['tanggal_naik']
-            )
-            ->whereIn(
-                'status',
-                [
-                    'pending',
-                    'approved'
-                ]
-            )
-            ->exists();
+        Simaksi::create([
 
+            'code' =>
+                $code,
 
-        if (
-            $duplicate
-        ) {
-
-            if (
-                $request->expectsJson()
-            ) {
-
-                return response()->json(
-                    [
-                        'message' =>
-                            'Anda sudah memiliki permohonan SIMAKSI untuk gunung dan tanggal tersebut.',
-                    ],
-                    422
-                );
-
-            }
-
-
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'gunung' =>
-                        'Permohonan SIMAKSI untuk gunung dan tanggal tersebut sudah ada.',
-                ]);
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SAVE
-        |--------------------------------------------------------------------------
-        */
-
-        $simaksi = Simaksi::create([
             'user_id' =>
-                $request->user()->id,
+                $request
+                    ->user()
+                    ->id,
+
+            'mountain_id' =>
+                $mountain?->id,
 
             'gunung' =>
-                $validated['gunung'],
+                $mountain?->name
+                ??
+                (
+                    $validated[
+                        'gunung'
+                    ]
+                    ??
+                    null
+                ),
 
             'tanggal_naik' =>
-                $validated['tanggal_naik'],
+                $validated[
+                    'tanggal_naik'
+                ],
 
             'tanggal_turun' =>
-                $validated['tanggal_turun'],
+                $validated[
+                    'tanggal_turun'
+                ],
 
             'jumlah_anggota' =>
-                $validated['jumlah_anggota'],
+                $validated[
+                    'jumlah_anggota'
+                ],
 
             'nomor_darurat' =>
-                $validated['nomor_darurat'],
+                $validated[
+                    'nomor_darurat'
+                ],
 
             'status' =>
                 'pending',
+
         ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | AJAX / OFFLINE SYNC
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $request->expectsJson()
-        ) {
-
-            return response()->json(
-                [
-                    'success' =>
-                        true,
-
-                    'message' =>
-                        'Permohonan SIMAKSI berhasil dikirim.',
-
-                    'data' => [
-                        'id' =>
-                            $simaksi->id,
-
-                        'status' =>
-                            $simaksi->status,
-
-                        'status_label' =>
-                            $simaksi->status_label,
-                    ],
-                ],
-                201
-            );
-
-        }
 
 
         return redirect()
@@ -357,7 +259,7 @@ class SimaksiController extends Controller
             )
             ->with(
                 'success',
-                'Permohonan SIMAKSI berhasil dikirim dan sedang menunggu verifikasi.'
+                'Permohonan SIMAKSI berhasil dikirim dan sedang menunggu persetujuan.'
             );
     }
 }

@@ -183,7 +183,7 @@
         >
 
             <a
-                href="{{ route('pendaki.mountains.show', $trail->mountain) }}"
+                href="{{ route('pendaki.mountain.show', $trail->mountain) }}"
                 class="
                     flex
                     h-9

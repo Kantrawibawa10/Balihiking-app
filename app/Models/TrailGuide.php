@@ -2,11 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TrailGuide extends Model
 {
+    use HasFactory;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILLABLE
+    |--------------------------------------------------------------------------
+    */
+
     protected $fillable = [
         'hiking_trail_id',
         'type',
@@ -16,10 +26,30 @@ class TrailGuide extends Model
         'is_active',
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'sort_order' => 'integer',
-    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | CASTS
+    |--------------------------------------------------------------------------
+    */
+
+    protected function casts(): array
+    {
+        return [
+            'sort_order' =>
+                'integer',
+
+            'is_active' =>
+                'boolean',
+        ];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | HIKING TRAIL
+    |--------------------------------------------------------------------------
+    */
 
     public function hikingTrail(): BelongsTo
     {
@@ -27,34 +57,5 @@ class TrailGuide extends Model
             HikingTrail::class,
             'hiking_trail_id'
         );
-    }
-
-    public function getTypeLabelAttribute(): string
-    {
-        return match ($this->type) {
-            'guide' =>
-                'Panduan Perjalanan',
-
-            'safety' =>
-                'Informasi Keamanan',
-
-            'warning' =>
-                'Peringatan',
-
-            'equipment' =>
-                'Perlengkapan',
-
-            'emergency' =>
-                'Informasi Darurat',
-
-            default =>
-                ucfirst(
-                    str_replace(
-                        '_',
-                        ' ',
-                        (string) $this->type
-                    )
-                ),
-        };
     }
 }
