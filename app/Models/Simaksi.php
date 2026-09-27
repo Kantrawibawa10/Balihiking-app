@@ -16,20 +16,65 @@ class Simaksi extends Model
     |--------------------------------------------------------------------------
     */
 
-    protected $table =
-        'simaksis';
+    protected $table = 'simaksis';
 
     /*
     |--------------------------------------------------------------------------
-    | GUARDED
+    | FILLABLE
     |--------------------------------------------------------------------------
-    |
-    | Controller sekarang tidak memakai mass assignment lagi.
-    | Ini tetap dibuat aman agar bagian admin lain tidak mudah error.
-    |
     */
 
-    protected $guarded = [];
+    protected $fillable = [
+        'code',
+
+        'user_id',
+
+        'mountain_id',
+
+        'gunung',
+
+        'tanggal_naik',
+
+        'tanggal_turun',
+
+        'jumlah_anggota',
+
+        'nomor_darurat',
+
+        'status',
+
+        /*
+        |--------------------------------------------------------------------------
+        | APPROVAL
+        |--------------------------------------------------------------------------
+        */
+
+        'approved_by',
+
+        'approved_at',
+
+        /*
+        |--------------------------------------------------------------------------
+        | REJECTION
+        |--------------------------------------------------------------------------
+        */
+
+        'rejected_by',
+
+        'rejected_at',
+
+        'rejection_reason',
+
+        /*
+        |--------------------------------------------------------------------------
+        | COMPLETED
+        |--------------------------------------------------------------------------
+        */
+
+        'completed_by',
+
+        'completed_at',
+    ];
 
     /*
     |--------------------------------------------------------------------------
@@ -51,12 +96,18 @@ class Simaksi extends Model
 
             'approved_at' =>
                 'datetime',
+
+            'rejected_at' =>
+                'datetime',
+
+            'completed_at' =>
+                'datetime',
         ];
     }
 
     /*
     |--------------------------------------------------------------------------
-    | USER
+    | USER / PENDAKI
     |--------------------------------------------------------------------------
     */
 
@@ -94,5 +145,149 @@ class Simaksi extends Model
             User::class,
             'approved_by'
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | REJECTED BY
+    |--------------------------------------------------------------------------
+    */
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'rejected_by'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | COMPLETED BY
+    |--------------------------------------------------------------------------
+    */
+
+    public function completedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'completed_by'
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS HELPERS
+    |--------------------------------------------------------------------------
+    */
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | STATUS LABEL
+    |--------------------------------------------------------------------------
+    */
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending' =>
+                'Pending',
+
+            'approved' =>
+                'Disetujui',
+
+            'rejected' =>
+                'Ditolak',
+
+            'completed' =>
+                'Selesai',
+
+            default =>
+                ucfirst(
+                    (string) $this->status
+                ),
+        };
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | MOUNTAIN NAME
+    |--------------------------------------------------------------------------
+    */
+
+    public function getMountainNameAttribute(): string
+    {
+        return $this
+            ->mountain
+            ?->name
+            ??
+            $this->gunung
+            ??
+            '-';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | APPROVER NAME
+    |--------------------------------------------------------------------------
+    */
+
+    public function getApprovedByNameAttribute(): string
+    {
+        return $this
+            ->approvedBy
+            ?->name
+            ??
+            '-';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | REJECTER NAME
+    |--------------------------------------------------------------------------
+    */
+
+    public function getRejectedByNameAttribute(): string
+    {
+        return $this
+            ->rejectedBy
+            ?->name
+            ??
+            '-';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | COMPLETER NAME
+    |--------------------------------------------------------------------------
+    */
+
+    public function getCompletedByNameAttribute(): string
+    {
+        return $this
+            ->completedBy
+            ?->name
+            ??
+            '-';
     }
 }
