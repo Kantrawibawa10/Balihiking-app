@@ -2,12 +2,11 @@
 <html lang="id">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
     >
 
     <meta
@@ -35,16 +34,9 @@
         content="BaliHiking"
     >
 
-    <meta
-        name="application-name"
-        content="BaliHiking"
-    >
-
-
     <title>
-        Pendaftaran SIMAKSI - BaliHiking
+        SIMAKSI - BaliHiking
     </title>
-
 
 
     {{-- ========================================================= --}}
@@ -69,93 +61,54 @@
     >
 
 
-
     {{-- ========================================================= --}}
-    {{-- LOCAL TAILWIND --}}
+    {{-- TAILWIND LOCAL --}}
     {{-- ========================================================= --}}
 
-    <script
-        src="{{ asset('vendor/tailwindcss.js') }}"
-    ></script>
-
+    <script src="{{ asset('vendor/tailwindcss.js') }}"></script>
 
     <script>
-
         tailwind.config = {
-
             theme: {
-
                 extend: {
-
                     colors: {
-
                         brand: {
-
-                            dark:
-                                '#1a382b',
-
-                            orange:
-                                '#f06535',
-
-                            cream:
-                                '#fbfbfa',
-
-                        }
-
+                            dark: '#1a382b',
+                            orange: '#f06535',
+                            cream: '#fbfbfa',
+                        },
                     },
 
                     fontFamily: {
-
                         sans: [
                             '-apple-system',
                             'BlinkMacSystemFont',
                             '"Segoe UI"',
                             'Roboto',
                             'Arial',
-                            'sans-serif'
+                            'sans-serif',
                         ],
-
-                    }
-
-                }
-
-            }
-
+                    },
+                },
+            },
         };
-
     </script>
 
 
-
     <style>
-
         * {
-            box-sizing:
-                border-box;
+            box-sizing: border-box;
         }
 
-
-        html {
-
-            background:
-                #fbfbfa;
-
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+            background: #fbfbfa;
         }
-
 
         body {
-
-            margin:
-                0;
-
-            min-height:
-                100vh;
-
-            background:
-                #fbfbfa;
-
-            color:
-                #1a382b;
+            color: #1a382b;
 
             font-family:
                 -apple-system,
@@ -164,9 +117,86 @@
                 Roboto,
                 Arial,
                 sans-serif;
-
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | APP WIDTH
+        |--------------------------------------------------------------------------
+        */
+
+        .app-width {
+            width: 100%;
+            max-width: 430px;
+
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        body.modal-open {
+            overflow: hidden;
+        }
+
+        /*
+        | Bottom nav wajib hilang saat form dibuka.
+        */
+        body.modal-open #portal-bottom-navigation {
+            display: none !important;
+        }
+
+        #simaksiModal {
+            display: none;
+        }
+
+        #simaksiModal.show {
+            display: flex;
+        }
+
+        .modal-sheet {
+            max-height:
+                calc(
+                    100dvh -
+                    env(safe-area-inset-top) -
+                    8px
+                );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SCROLLBAR
+        |--------------------------------------------------------------------------
+        */
+
+        .hide-scrollbar {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | AJAX REPORT
+        |--------------------------------------------------------------------------
+        */
+
+        #simaksiReportPanel {
+            transition:
+                opacity .15s ease;
+        }
+
+        #simaksiReportPanel.is-loading {
+            opacity: .45;
+            pointer-events: none;
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -175,146 +205,101 @@
         */
 
         #networkStatus {
+            position: fixed;
 
-            position:
-                fixed;
-
-            left:
-                50%;
+            left: 50%;
 
             bottom:
                 calc(
-                    90px +
+                    88px +
                     env(safe-area-inset-bottom)
                 );
 
-            z-index:
-                99999;
+            z-index: 99999;
 
-            display:
-                none;
-
-            padding:
-                9px 14px;
+            display: none;
 
             transform:
                 translateX(-50%);
 
-            border-radius:
-                999px;
+            padding: 9px 14px;
 
-            background:
-                #f06535;
+            border-radius: 999px;
 
-            color:
-                white;
+            background: #f06535;
+
+            color: white;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            white-space: nowrap;
 
             box-shadow:
-                0 10px 30px
-                rgba(0, 0, 0, .16);
-
-            font-size:
-                10px;
-
-            font-weight:
-                700;
-
-            white-space:
-                nowrap;
-
+                0 8px 24px
+                rgba(0, 0, 0, .15);
         }
-
 
         #networkStatus.show {
-
-            display:
-                block;
-
+            display: block;
         }
-
 
         /*
         |--------------------------------------------------------------------------
-        | OFFLINE ROW
+        | TOAST
         |--------------------------------------------------------------------------
         */
 
-        .offline-row {
+        #toast {
+            position: fixed;
 
-            background:
-                #fff8f3;
+            top:
+                calc(
+                    76px +
+                    env(safe-area-inset-top)
+                );
 
-        }
+            left: 50%;
 
+            z-index: 100000;
 
-        /*
-        |--------------------------------------------------------------------------
-        | TABLE SCROLL
-        |--------------------------------------------------------------------------
-        */
-
-        .table-scroll {
+            display: none;
 
             width:
-                100%;
+                calc(
+                    100% -
+                    32px
+                );
 
-            overflow-x:
-                auto;
+            max-width: 390px;
 
-            -webkit-overflow-scrolling:
-                touch;
+            transform:
+                translateX(-50%);
 
+            padding:
+                12px 14px;
+
+            border-radius: 14px;
+
+            background: #1a382b;
+
+            color: white;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            line-height: 1.5;
+
+            box-shadow:
+                0 12px 30px
+                rgba(0, 0, 0, .16);
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | MOBILE / DESKTOP
-        |--------------------------------------------------------------------------
-        */
-
-        .desktop-table {
-
-            display:
-                none;
-
+        #toast.show {
+            display: block;
         }
-
-
-        .mobile-list {
-
-            display:
-                block;
-
-        }
-
-
-        @media (
-            min-width:
-                768px
-        ) {
-
-            .desktop-table {
-
-                display:
-                    block;
-
-            }
-
-
-            .mobile-list {
-
-                display:
-                    none;
-
-            }
-
-        }
-
     </style>
-
 </head>
-
 
 
 <body
@@ -328,15 +313,19 @@
 
 
     {{-- ========================================================= --}}
-    {{-- NETWORK STATUS --}}
+    {{-- NETWORK --}}
     {{-- ========================================================= --}}
 
-    <div
-        id="networkStatus"
-    >
+    <div id="networkStatus">
         Offline · data akan disinkronkan
     </div>
 
+
+    {{-- ========================================================= --}}
+    {{-- TOAST --}}
+    {{-- ========================================================= --}}
+
+    <div id="toast"></div>
 
 
     {{-- ========================================================= --}}
@@ -348,58 +337,61 @@
             sticky
             top-0
             z-40
+
             border-b
             border-brand-dark/10
+
             bg-white/95
             backdrop-blur-md
         "
     >
-
         <div
             class="
-                mx-auto
+                app-width
+
                 flex
                 h-16
-                max-w-5xl
+
                 items-center
                 justify-between
+
                 px-4
             "
         >
-
 
             <a
                 href="{{ route('pendaki.dashboard') }}"
                 class="
                     -ml-2
+
                     flex
                     h-10
                     w-10
+
                     items-center
                     justify-center
+
                     rounded-xl
+
                     text-brand-dark
+
+                    active:bg-brand-dark/5
                 "
             >
-
                 <svg
                     class="h-6 w-6"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
-                    stroke-width="2.4"
+                    stroke-width="2.3"
                 >
-
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
                         d="m15 18-6-6 6-6"
                     />
-
                 </svg>
-
             </a>
-
 
 
             <div
@@ -409,7 +401,6 @@
                     gap-2
                 "
             >
-
                 <img
                     src="{{ asset('icons/icon-192.png') }}"
                     alt="BaliHiking"
@@ -421,18 +412,15 @@
                     "
                 >
 
-
                 <div>
-
                     <h1
                         class="
                             text-sm
                             font-black
                         "
                     >
-                        Registrasi SIMAKSI
+                        SIMAKSI
                     </h1>
-
 
                     <p
                         class="
@@ -443,20 +431,14 @@
                     >
                         BaliHiking
                     </p>
-
                 </div>
-
             </div>
 
 
-            <div
-                class="w-10"
-            ></div>
+            <div class="w-10"></div>
 
         </div>
-
     </header>
-
 
 
     {{-- ========================================================= --}}
@@ -465,1323 +447,599 @@
 
     <main
         class="
-            mx-auto
-            max-w-5xl
-            space-y-7
+            app-width
+
+            space-y-5
+
             px-4
-            py-6
+            py-5
         "
     >
 
 
         {{-- ===================================================== --}}
-        {{-- SUCCESS --}}
-        {{-- ===================================================== --}}
-
-        @if(session('success'))
-
-            <div
-                class="
-                    rounded-2xl
-                    bg-brand-dark
-                    p-4
-                    text-xs
-                    font-semibold
-                    text-white
-                "
-            >
-                {{ session('success') }}
-            </div>
-
-        @endif
-
-
-
-        {{-- ===================================================== --}}
-        {{-- FORM --}}
+        {{-- HERO --}}
         {{-- ===================================================== --}}
 
         <section
             class="
-                mx-auto
-                w-full
-                max-w-xl
+                rounded-3xl
+
+                bg-brand-dark
+
+                p-5
+
+                text-white
+
+                shadow-sm
             "
         >
-
-            <form
-                action="{{ route('pendaki.simaksi.store') }}"
-                method="POST"
-                id="simaksiForm"
+            <div
                 class="
-                    space-y-4
-                    rounded-3xl
-                    border
-                    border-brand-dark/10
-                    bg-white
-                    p-6
-                    shadow-sm
+                    flex
+                    items-start
+                    justify-between
+                    gap-4
                 "
             >
 
-                @csrf
+                <div class="min-w-0">
 
-
-                <div>
-
-                    <span
+                    <p
                         class="
-                            border-b-2
-                            border-brand-orange
-                            pb-1
-                            text-[10px]
+                            text-[9px]
                             font-black
                             uppercase
-                            tracking-widest
-                            text-brand-orange
+                            tracking-[0.15em]
+                            text-white/45
                         "
                     >
                         Izin Pendakian
-                    </span>
+                    </p>
 
 
                     <h2
                         class="
-                            mt-3
+                            mt-1.5
+
                             text-xl
                             font-black
                         "
                     >
-                        Form Permohonan
+                        Registrasi SIMAKSI
                     </h2>
 
 
                     <p
                         class="
-                            mt-1
-                            text-xs
-                            leading-relaxed
-                            text-brand-dark/55
-                        "
-                    >
-                        Isi data perjalanan secara akurat untuk
-                        mendukung keselamatan selama pendakian.
-                    </p>
+                            mt-1.5
 
-                </div>
-
-
-
-                {{-- GUNUNG --}}
-
-                <div>
-
-                    <label
-                        class="
-                            mb-1.5
-                            block
-                            text-xs
-                            font-bold
-                        "
-                    >
-                        Pilih Gunung
-                    </label>
-
-
-                    <select
-                        name="gunung"
-                        required
-                        class="
-                            h-12
-                            w-full
-                            rounded-xl
-                            border
-                            border-brand-dark/15
-                            bg-brand-cream
-                            px-3.5
-                            text-xs
-                            font-bold
-                            outline-none
-                            focus:border-brand-orange
-                            focus:ring-1
-                            focus:ring-brand-orange
-                        "
-                    >
-
-                        <option
-                            value="Gunung Agung"
-                            @selected(
-                                old('gunung') ===
-                                'Gunung Agung'
-                            )
-                        >
-                            Gunung Agung (3.031 mdpl)
-                        </option>
-
-
-                        <option
-                            value="Gunung Batur"
-                            @selected(
-                                old('gunung') ===
-                                'Gunung Batur'
-                            )
-                        >
-                            Gunung Batur (1.717 mdpl)
-                        </option>
-
-
-                        <option
-                            value="Gunung Abang"
-                            @selected(
-                                old('gunung') ===
-                                'Gunung Abang'
-                            )
-                        >
-                            Gunung Abang (2.152 mdpl)
-                        </option>
-
-                    </select>
-
-
-                    @error('gunung')
-
-                        <p
-                            class="
-                                mt-1
-                                text-[10px]
-                                text-red-600
-                            "
-                        >
-                            {{ $message }}
-                        </p>
-
-                    @enderror
-
-                </div>
-
-
-
-                {{-- DATES --}}
-
-                <div
-                    class="
-                        grid
-                        grid-cols-2
-                        gap-3
-                    "
-                >
-
-                    <div>
-
-                        <label
-                            class="
-                                mb-1.5
-                                block
-                                text-xs
-                                font-bold
-                            "
-                        >
-                            Tanggal Naik
-                        </label>
-
-
-                        <input
-                            type="date"
-                            name="tanggal_naik"
-                            id="tanggal_naik"
-                            value="{{ old('tanggal_naik') }}"
-                            required
-                            class="
-                                h-12
-                                w-full
-                                rounded-xl
-                                border
-                                border-brand-dark/15
-                                bg-brand-cream
-                                px-3
-                                text-xs
-                                font-semibold
-                                outline-none
-                                focus:border-brand-orange
-                                focus:ring-1
-                                focus:ring-brand-orange
-                            "
-                        >
-
-                    </div>
-
-
-                    <div>
-
-                        <label
-                            class="
-                                mb-1.5
-                                block
-                                text-xs
-                                font-bold
-                            "
-                        >
-                            Tanggal Turun
-                        </label>
-
-
-                        <input
-                            type="date"
-                            name="tanggal_turun"
-                            id="tanggal_turun"
-                            value="{{ old('tanggal_turun') }}"
-                            required
-                            class="
-                                h-12
-                                w-full
-                                rounded-xl
-                                border
-                                border-brand-dark/15
-                                bg-brand-cream
-                                px-3
-                                text-xs
-                                font-semibold
-                                outline-none
-                                focus:border-brand-orange
-                                focus:ring-1
-                                focus:ring-brand-orange
-                            "
-                        >
-
-                    </div>
-
-                </div>
-
-
-
-                {{-- JUMLAH --}}
-
-                <div>
-
-                    <label
-                        class="
-                            mb-1.5
-                            block
-                            text-xs
-                            font-bold
-                        "
-                    >
-                        Jumlah Anggota Rombongan
-                    </label>
-
-
-                    <input
-                        type="number"
-                        name="jumlah_anggota"
-                        min="1"
-                        max="100"
-                        value="{{ old('jumlah_anggota', 1) }}"
-                        required
-                        class="
-                            h-12
-                            w-full
-                            rounded-xl
-                            border
-                            border-brand-dark/15
-                            bg-brand-cream
-                            px-3.5
-                            text-xs
-                            font-bold
-                            outline-none
-                            focus:border-brand-orange
-                            focus:ring-1
-                            focus:ring-brand-orange
-                        "
-                    >
-
-                </div>
-
-
-
-                {{-- EMERGENCY --}}
-
-                <div>
-
-                    <label
-                        class="
-                            mb-1.5
-                            block
-                            text-xs
-                            font-bold
-                        "
-                    >
-                        Nomor Kontak Darurat
-                    </label>
-
-
-                    <input
-                        type="tel"
-                        name="nomor_darurat"
-                        value="{{ old('nomor_darurat') }}"
-                        placeholder="08xxxxxxxxxx"
-                        required
-                        class="
-                            h-12
-                            w-full
-                            rounded-xl
-                            border
-                            border-brand-dark/15
-                            bg-brand-cream
-                            px-3.5
-                            text-xs
-                            font-semibold
-                            outline-none
-                            placeholder:text-brand-dark/30
-                            focus:border-brand-orange
-                            focus:ring-1
-                            focus:ring-brand-orange
-                        "
-                    >
-
-                </div>
-
-
-
-                {{-- OFFLINE INFO --}}
-
-                <div
-                    class="
-                        rounded-xl
-                        bg-brand-dark/[0.04]
-                        p-3
-                    "
-                >
-
-                    <p
-                        class="
                             text-[10px]
-                            leading-relaxed
-                            text-brand-dark/50
+                            leading-5
+                            text-white/60
                         "
                     >
-                        Jika internet terputus, permohonan akan
-                        disimpan terlebih dahulu di perangkat dan
-                        dikirim otomatis ketika BaliHiking kembali
-                        online.
+                        Ajukan izin pendakian dan pantau
+                        statusnya langsung dari aplikasi.
                     </p>
 
                 </div>
 
 
-
-                <button
-                    type="submit"
-                    id="submitButton"
+                <div
                     class="
                         flex
-                        h-12
-                        w-full
+                        h-11
+                        w-11
+
+                        shrink-0
+
                         items-center
                         justify-center
-                        rounded-xl
-                        bg-brand-orange
-                        text-xs
-                        font-bold
-                        text-white
-                        shadow-lg
-                        shadow-brand-orange/20
-                        transition
-                        active:scale-[0.98]
-                        disabled:opacity-50
+
+                        rounded-2xl
+
+                        bg-white/10
                     "
                 >
-                    <span id="submitText">
-                        Kirim Permohonan SIMAKSI →
-                    </span>
-                </button>
+                    <svg
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M9 12h6m-6 4h4M6 3h9l3 3v15H6V3Z"
+                        />
+                    </svg>
+                </div>
 
-            </form>
+            </div>
+
+
+            <button
+                type="button"
+                id="openSimaksiModal"
+                class="
+                    mt-5
+
+                    flex
+                    h-11
+                    w-full
+
+                    items-center
+                    justify-center
+                    gap-2
+
+                    rounded-xl
+
+                    bg-brand-orange
+
+                    text-[10px]
+                    font-black
+                    text-white
+
+                    active:scale-[0.98]
+                "
+            >
+                <svg
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="2.3"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 5v14M5 12h14"
+                    />
+                </svg>
+
+                Ajukan SIMAKSI
+            </button>
 
         </section>
 
 
-
         {{-- ===================================================== --}}
-        {{-- DATA SIMAKSI --}}
+        {{-- REPORT COVER CARD --}}
         {{-- ===================================================== --}}
 
         <section
+            id="simaksiReportPanel"
             class="
-                space-y-4
+                overflow-hidden
+
+                rounded-3xl
+
+                border
+                border-brand-dark/10
+
+                bg-white
+
+                shadow-sm
             "
         >
 
-
-            {{-- HEADER --}}
-
             <div
                 class="
-                    flex
-                    flex-col
-                    gap-3
-                    sm:flex-row
-                    sm:items-end
-                    sm:justify-between
+                    space-y-4
+
+                    p-4
                 "
             >
 
-                <div>
+                {{-- ================================================= --}}
+                {{-- REPORT HEADER --}}
+                {{-- ================================================= --}}
 
-                    <span
+                <div
+                    class="
+                        flex
+                        items-start
+                        justify-between
+                        gap-3
+                    "
+                >
+                    <div>
+
+                        <p
+                            class="
+                                text-[9px]
+                                font-black
+                                uppercase
+                                tracking-[0.15em]
+                                text-brand-orange
+                            "
+                        >
+                            Riwayat Permohonan
+                        </p>
+
+
+                        <h2
+                            class="
+                                mt-1
+
+                                text-lg
+                                font-black
+                            "
+                        >
+                            SIMAKSI Saya
+                        </h2>
+
+
+                        <p
+                            class="
+                                mt-1
+
+                                text-[10px]
+                                text-brand-dark/40
+                            "
+                        >
+                            Pantau status izin pendakian Anda.
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        id="offlineQueueBadge"
                         class="
-                            text-[10px]
+                            hidden
+
+                            shrink-0
+
+                            rounded-full
+
+                            bg-orange-100
+
+                            px-2.5
+                            py-1.5
+
+                            text-[8px]
                             font-black
-                            uppercase
-                            tracking-widest
-                            text-brand-orange
+                            text-orange-700
                         "
-                    >
-                        Riwayat Permohonan
-                    </span>
-
-
-                    <h2
-                        class="
-                            mt-1
-                            text-lg
-                            font-black
-                        "
-                    >
-                        Data SIMAKSI Saya
-                    </h2>
-
-
-                    <p
-                        class="
-                            mt-1
-                            text-xs
-                            text-brand-dark/45
-                        "
-                    >
-                        Pantau status permohonan izin pendakian Anda.
-                    </p>
+                    ></div>
 
                 </div>
 
 
+                {{-- ================================================= --}}
+                {{-- SUMMARY --}}
+                {{-- ================================================= --}}
+
                 <div
-                    id="offlineQueueBadge"
+                    class="
+                        grid
+                        grid-cols-4
+                        gap-2
+                    "
+                >
+
+                    <div
+                        class="
+                            rounded-xl
+
+                            bg-brand-cream
+
+                            px-1
+                            py-3
+
+                            text-center
+                        "
+                    >
+                        <p
+                            class="
+                                text-[7px]
+                                text-brand-dark/35
+                            "
+                        >
+                            Total
+                        </p>
+
+                        <p
+                            class="
+                                mt-1
+                                text-lg
+                                font-black
+                            "
+                        >
+                            {{ $totalSimaksi }}
+                        </p>
+                    </div>
+
+
+                    <div
+                        class="
+                            rounded-xl
+
+                            bg-amber-50
+
+                            px-1
+                            py-3
+
+                            text-center
+                        "
+                    >
+                        <p
+                            class="
+                                text-[7px]
+                                text-amber-700/60
+                            "
+                        >
+                            Pending
+                        </p>
+
+                        <p
+                            class="
+                                mt-1
+                                text-lg
+                                font-black
+                                text-amber-700
+                            "
+                        >
+                            {{ $totalPending }}
+                        </p>
+                    </div>
+
+
+                    <div
+                        class="
+                            rounded-xl
+
+                            bg-emerald-50
+
+                            px-1
+                            py-3
+
+                            text-center
+                        "
+                    >
+                        <p
+                            class="
+                                text-[7px]
+                                text-emerald-700/60
+                            "
+                        >
+                            ACC
+                        </p>
+
+                        <p
+                            class="
+                                mt-1
+                                text-lg
+                                font-black
+                                text-emerald-700
+                            "
+                        >
+                            {{ $totalApproved }}
+                        </p>
+                    </div>
+
+
+                    <div
+                        class="
+                            rounded-xl
+
+                            bg-red-50
+
+                            px-1
+                            py-3
+
+                            text-center
+                        "
+                    >
+                        <p
+                            class="
+                                text-[7px]
+                                text-red-700/60
+                            "
+                        >
+                            Ditolak
+                        </p>
+
+                        <p
+                            class="
+                                mt-1
+                                text-lg
+                                font-black
+                                text-red-700
+                            "
+                        >
+                            {{ $totalRejected }}
+                        </p>
+                    </div>
+
+                </div>
+
+
+                {{-- ================================================= --}}
+                {{-- FILTER --}}
+                {{-- ================================================= --}}
+
+                <div
+                    class="
+                        hide-scrollbar
+
+                        flex
+                        gap-2
+
+                        overflow-x-auto
+                    "
+                >
+                    @foreach([
+                        'all' => 'Semua',
+                        'pending' => 'Pending',
+                        'approved' => 'Disetujui',
+                        'rejected' => 'Ditolak',
+                    ] as $filterValue => $filterLabel)
+
+                        <a
+                            href="{{
+                                route(
+                                    'pendaki.simaksi',
+                                    [
+                                        'status' =>
+                                            $filterValue,
+                                    ]
+                                )
+                            }}"
+                            data-simaksi-filter
+                            class="
+                                shrink-0
+
+                                rounded-xl
+
+                                px-3.5
+                                py-2.5
+
+                                text-[9px]
+                                font-black
+
+                                transition
+                                active:scale-[0.97]
+
+                                {{
+                                    $status === $filterValue
+                                        ? 'bg-brand-dark text-white'
+                                        : 'bg-brand-cream text-brand-dark/45'
+                                }}
+                            "
+                        >
+                            {{ $filterLabel }}
+                        </a>
+
+                    @endforeach
+                </div>
+
+
+                {{-- ================================================= --}}
+                {{-- OFFLINE QUEUE --}}
+                {{-- ================================================= --}}
+
+                <div
+                    id="offlineSimaksiContainer"
                     class="
                         hidden
-                        rounded-full
-                        bg-orange-100
-                        px-3
-                        py-1.5
-                        text-[9px]
-                        font-bold
-                        text-brand-orange
-                    "
-                >
-                </div>
 
-            </div>
+                        overflow-hidden
 
-
-
-            {{-- ================================================= --}}
-            {{-- SUMMARY --}}
-            {{-- ================================================= --}}
-
-            <div
-                class="
-                    grid
-                    grid-cols-2
-                    gap-3
-                    sm:grid-cols-4
-                "
-            >
-
-
-                <div
-                    class="
                         rounded-2xl
+
                         border
-                        border-brand-dark/10
-                        bg-white
-                        p-4
-                    "
-                >
-
-                    <p
-                        class="
-                            text-[9px]
-                            text-brand-dark/40
-                        "
-                    >
-                        Total
-                    </p>
-
-
-                    <p
-                        class="
-                            mt-1
-                            text-xl
-                            font-black
-                        "
-                    >
-                        {{ $totalSimaksi }}
-                    </p>
-
-                </div>
-
-
-
-                <div
-                    class="
-                        rounded-2xl
-                        border
-                        border-amber-100
-                        bg-amber-50
-                        p-4
-                    "
-                >
-
-                    <p
-                        class="
-                            text-[9px]
-                            text-amber-700/60
-                        "
-                    >
-                        Pending
-                    </p>
-
-
-                    <p
-                        class="
-                            mt-1
-                            text-xl
-                            font-black
-                            text-amber-700
-                        "
-                    >
-                        {{ $totalPending }}
-                    </p>
-
-                </div>
-
-
-
-                <div
-                    class="
-                        rounded-2xl
-                        border
-                        border-emerald-100
-                        bg-emerald-50
-                        p-4
-                    "
-                >
-
-                    <p
-                        class="
-                            text-[9px]
-                            text-emerald-700/60
-                        "
-                    >
-                        Disetujui
-                    </p>
-
-
-                    <p
-                        class="
-                            mt-1
-                            text-xl
-                            font-black
-                            text-emerald-700
-                        "
-                    >
-                        {{ $totalApproved }}
-                    </p>
-
-                </div>
-
-
-
-                <div
-                    class="
-                        rounded-2xl
-                        border
-                        border-red-100
-                        bg-red-50
-                        p-4
-                    "
-                >
-
-                    <p
-                        class="
-                            text-[9px]
-                            text-red-700/60
-                        "
-                    >
-                        Ditolak
-                    </p>
-
-
-                    <p
-                        class="
-                            mt-1
-                            text-xl
-                            font-black
-                            text-red-700
-                        "
-                    >
-                        {{ $totalRejected }}
-                    </p>
-
-                </div>
-
-            </div>
-
-
-
-            {{-- ================================================= --}}
-            {{-- FILTER --}}
-            {{-- ================================================= --}}
-
-            <div
-                class="
-                    flex
-                    gap-2
-                    overflow-x-auto
-                    pb-1
-                "
-            >
-
-
-                @foreach([
-                    'all' => 'Semua',
-                    'pending' => 'Pending',
-                    'approved' => 'Disetujui',
-                    'rejected' => 'Ditolak',
-                ] as $filterValue => $filterLabel)
-
-                    <a
-                        href="{{
-                            route(
-                                'pendaki.simaksi',
-                                [
-                                    'status' =>
-                                        $filterValue
-                                ]
-                            )
-                        }}"
-                        class="
-                            shrink-0
-                            rounded-lg
-                            px-4
-                            py-2
-                            text-[10px]
-                            font-bold
-                            transition
-
-                            {{
-                                $status === $filterValue
-                                    ? 'bg-brand-dark text-white'
-                                    : 'border border-brand-dark/10 bg-white text-brand-dark/55'
-                            }}
-                        "
-                    >
-                        {{ $filterLabel }}
-                    </a>
-
-                @endforeach
-
-            </div>
-
-
-
-            {{-- ================================================= --}}
-            {{-- OFFLINE LOCAL DATA --}}
-            {{-- ================================================= --}}
-
-            <div
-                id="offlineSimaksiContainer"
-                class="
-                    hidden
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-orange-200
-                    bg-orange-50
-                "
-            >
-
-                <div
-                    class="
-                        border-b
                         border-orange-200
-                        px-4
-                        py-3
+
+                        bg-orange-50
                     "
                 >
-
-                    <p
+                    <div
                         class="
-                            text-xs
-                            font-black
-                            text-brand-orange
+                            border-b
+                            border-orange-200
+
+                            px-4
+                            py-3
                         "
                     >
-                        Menunggu Sinkronisasi
-                    </p>
+                        <p
+                            class="
+                                text-[10px]
+                                font-black
+                                text-orange-700
+                            "
+                        >
+                            Menunggu Sinkronisasi
+                        </p>
+
+                        <p
+                            class="
+                                mt-0.5
+
+                                text-[8px]
+                                text-orange-700/60
+                            "
+                        >
+                            Data tersimpan sementara di perangkat.
+                        </p>
+                    </div>
 
 
-                    <p
+                    <div
+                        id="offlineSimaksiList"
                         class="
-                            mt-0.5
-                            text-[9px]
-                            text-orange-700/60
+                            divide-y
+                            divide-orange-200
                         "
-                    >
-                        Data berikut masih tersimpan di perangkat.
-                    </p>
-
+                    ></div>
                 </div>
 
 
+                {{-- ================================================= --}}
+                {{-- HISTORY CARDS --}}
+                {{-- ================================================= --}}
+
                 <div
-                    id="offlineSimaksiList"
                     class="
-                        divide-y
-                        divide-orange-200
+                        space-y-3
                     "
-                ></div>
-
-            </div>
-
-
-
-            {{-- ================================================= --}}
-            {{-- DESKTOP TABLE --}}
-            {{-- ================================================= --}}
-
-            <div
-                class="
-                    desktop-table
-                    overflow-hidden
-                    rounded-2xl
-                    border
-                    border-brand-dark/10
-                    bg-white
-                    shadow-sm
-                "
-            >
-
-                <div
-                    class="table-scroll"
                 >
+                    @forelse(
+                        $simaksis
+                        as $simaksi
+                    )
 
-                    <table
-                        class="
-                            w-full
-                            min-w-[850px]
-                            border-collapse
-                            text-left
-                        "
-                    >
+                        @php
+                            $normalizedStatus =
+                                strtolower(
+                                    trim(
+                                        (string)
+                                        $simaksi->status
+                                    )
+                                );
 
-                        <thead
+                            $isApproved =
+                                in_array(
+                                    $normalizedStatus,
+                                    [
+                                        'approved',
+                                        'disetujui',
+                                        'accepted',
+                                    ],
+                                    true
+                                );
+
+                            $isRejected =
+                                in_array(
+                                    $normalizedStatus,
+                                    [
+                                        'rejected',
+                                        'ditolak',
+                                        'declined',
+                                    ],
+                                    true
+                                );
+                        @endphp
+
+
+                        <article
                             class="
-                                bg-brand-dark/[0.04]
+                                rounded-2xl
+
+                                border
+                                border-brand-dark/[0.07]
+
+                                bg-brand-cream/50
+
+                                p-4
                             "
                         >
 
-                            <tr>
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        tracking-wide
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    No
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Gunung
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Tanggal Naik
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Tanggal Turun
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Anggota
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Kontak Darurat
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Status
-                                </th>
-
-
-                                <th
-                                    class="
-                                        px-4
-                                        py-3
-                                        text-[9px]
-                                        font-black
-                                        uppercase
-                                        text-brand-dark/40
-                                    "
-                                >
-                                    Tanggal Pengajuan
-                                </th>
-
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody
-                            class="
-                                divide-y
-                                divide-brand-dark/5
-                            "
-                        >
-
-                            @forelse(
-                                $simaksis
-                                as $simaksi
-                            )
-
-                                <tr
-                                    class="
-                                        transition
-                                        hover:bg-brand-cream/60
-                                    "
-                                >
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-xs
-                                            font-semibold
-                                            text-brand-dark/50
-                                        "
-                                    >
-                                        {{
-                                            $simaksis->firstItem()
-                                            +
-                                            $loop->index
-                                        }}
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                        "
-                                    >
-
-                                        <p
-                                            class="
-                                                text-xs
-                                                font-extrabold
-                                            "
-                                        >
-                                            {{ $simaksi->gunung }}
-                                        </p>
-
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-xs
-                                            font-semibold
-                                        "
-                                    >
-                                        {{
-                                            $simaksi
-                                                ->tanggal_naik
-                                                ->format('d/m/Y')
-                                        }}
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-xs
-                                            font-semibold
-                                        "
-                                    >
-                                        {{
-                                            $simaksi
-                                                ->tanggal_turun
-                                                ->format('d/m/Y')
-                                        }}
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-xs
-                                            font-semibold
-                                        "
-                                    >
-                                        {{
-                                            $simaksi
-                                                ->jumlah_anggota
-                                        }}
-
-                                        orang
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-xs
-                                            font-semibold
-                                        "
-                                    >
-                                        {{
-                                            $simaksi
-                                                ->nomor_darurat
-                                        }}
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                        "
-                                    >
-
-                                        @if(
-                                            $simaksi->status ===
-                                            'approved'
-                                        )
-
-                                            <span
-                                                class="
-                                                    inline-flex
-                                                    items-center
-                                                    gap-1.5
-                                                    rounded-full
-                                                    bg-emerald-100
-                                                    px-2.5
-                                                    py-1
-                                                    text-[9px]
-                                                    font-black
-                                                    text-emerald-700
-                                                "
-                                            >
-
-                                                <span
-                                                    class="
-                                                        h-1.5
-                                                        w-1.5
-                                                        rounded-full
-                                                        bg-emerald-600
-                                                    "
-                                                ></span>
-
-                                                Disetujui
-
-                                            </span>
-
-
-                                        @elseif(
-                                            $simaksi->status ===
-                                            'rejected'
-                                        )
-
-                                            <span
-                                                class="
-                                                    inline-flex
-                                                    items-center
-                                                    gap-1.5
-                                                    rounded-full
-                                                    bg-red-100
-                                                    px-2.5
-                                                    py-1
-                                                    text-[9px]
-                                                    font-black
-                                                    text-red-700
-                                                "
-                                            >
-
-                                                <span
-                                                    class="
-                                                        h-1.5
-                                                        w-1.5
-                                                        rounded-full
-                                                        bg-red-600
-                                                    "
-                                                ></span>
-
-                                                Ditolak
-
-                                            </span>
-
-
-                                        @else
-
-                                            <span
-                                                class="
-                                                    inline-flex
-                                                    items-center
-                                                    gap-1.5
-                                                    rounded-full
-                                                    bg-amber-100
-                                                    px-2.5
-                                                    py-1
-                                                    text-[9px]
-                                                    font-black
-                                                    text-amber-700
-                                                "
-                                            >
-
-                                                <span
-                                                    class="
-                                                        h-1.5
-                                                        w-1.5
-                                                        rounded-full
-                                                        bg-amber-500
-                                                    "
-                                                ></span>
-
-                                                Pending
-
-                                            </span>
-
-                                        @endif
-
-                                    </td>
-
-
-                                    <td
-                                        class="
-                                            px-4
-                                            py-4
-                                            text-[10px]
-                                            text-brand-dark/45
-                                        "
-                                    >
-
-                                        {{
-                                            $simaksi
-                                                ->created_at
-                                                ->format(
-                                                    'd/m/Y H:i'
-                                                )
-                                        }}
-
-                                    </td>
-
-                                </tr>
-
-
-                                @if(
-                                    $simaksi->catatan_admin
-                                )
-
-                                    <tr>
-
-                                        <td
-                                            colspan="8"
-                                            class="
-                                                bg-brand-cream/40
-                                                px-4
-                                                py-2.5
-                                            "
-                                        >
-
-                                            <p
-                                                class="
-                                                    text-[9px]
-                                                    leading-relaxed
-                                                    text-brand-dark/55
-                                                "
-                                            >
-
-                                                <span
-                                                    class="font-bold"
-                                                >
-                                                    Catatan:
-                                                </span>
-
-                                                {{
-                                                    $simaksi
-                                                        ->catatan_admin
-                                                }}
-
-                                            </p>
-
-                                        </td>
-
-                                    </tr>
-
-                                @endif
-
-
-                            @empty
-
-                                <tr>
-
-                                    <td
-                                        colspan="8"
-                                        class="
-                                            px-6
-                                            py-12
-                                            text-center
-                                        "
-                                    >
-
-                                        <p
-                                            class="
-                                                text-sm
-                                                font-bold
-                                            "
-                                        >
-                                            Belum ada data SIMAKSI
-                                        </p>
-
-
-                                        <p
-                                            class="
-                                                mt-1
-                                                text-xs
-                                                text-brand-dark/40
-                                            "
-                                        >
-                                            Permohonan yang Anda kirim akan tampil di sini.
-                                        </p>
-
-                                    </td>
-
-                                </tr>
-
-                            @endforelse
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-
-
-            {{-- ================================================= --}}
-            {{-- MOBILE LIST --}}
-            {{-- ================================================= --}}
-
-            <div
-                class="
-                    mobile-list
-                    space-y-3
-                "
-            >
-
-                @forelse(
-                    $simaksis
-                    as $simaksi
-                )
-
-                    <article
-                        class="
-                            overflow-hidden
-                            rounded-2xl
-                            border
-                            border-brand-dark/10
-                            bg-white
-                            shadow-sm
-                        "
-                    >
-
-                        <div
-                            class="p-4"
-                        >
+                            {{-- HEADER --}}
 
                             <div
                                 class="
@@ -1792,13 +1050,14 @@
                                 "
                             >
 
-                                <div>
+                                <div class="min-w-0">
 
                                     <p
                                         class="
-                                            text-[9px]
-                                            font-bold
+                                            text-[8px]
+                                            font-black
                                             uppercase
+                                            tracking-wide
                                             text-brand-orange
                                         "
                                     >
@@ -1810,29 +1069,56 @@
                                     <h3
                                         class="
                                             mt-1
+
+                                            truncate
+
                                             text-sm
                                             font-black
                                         "
                                     >
-                                        {{ $simaksi->gunung }}
+                                        {{
+                                            $simaksi->mountain?->name
+                                            ??
+                                            $simaksi->gunung
+                                        }}
                                     </h3>
+
+
+                                    <p
+                                        class="
+                                            mt-0.5
+
+                                            text-[8px]
+                                            text-brand-dark/35
+                                        "
+                                    >
+                                        Diajukan
+                                        {{
+                                            $simaksi
+                                                ->created_at
+                                                ->format(
+                                                    'd/m/Y H:i'
+                                                )
+                                        }}
+                                    </p>
 
                                 </div>
 
 
-
-                                @if(
-                                    $simaksi->status ===
-                                    'approved'
-                                )
+                                @if($isApproved)
 
                                     <span
                                         class="
+                                            shrink-0
+
                                             rounded-full
+
                                             bg-emerald-100
+
                                             px-2.5
                                             py-1
-                                            text-[9px]
+
+                                            text-[8px]
                                             font-black
                                             text-emerald-700
                                         "
@@ -1840,19 +1126,20 @@
                                         Disetujui
                                     </span>
 
-
-                                @elseif(
-                                    $simaksi->status ===
-                                    'rejected'
-                                )
+                                @elseif($isRejected)
 
                                     <span
                                         class="
+                                            shrink-0
+
                                             rounded-full
+
                                             bg-red-100
+
                                             px-2.5
                                             py-1
-                                            text-[9px]
+
+                                            text-[8px]
                                             font-black
                                             text-red-700
                                         "
@@ -1860,16 +1147,20 @@
                                         Ditolak
                                     </span>
 
-
                                 @else
 
                                     <span
                                         class="
+                                            shrink-0
+
                                             rounded-full
+
                                             bg-amber-100
+
                                             px-2.5
                                             py-1
-                                            text-[9px]
+
+                                            text-[8px]
                                             font-black
                                             text-amber-700
                                         "
@@ -1882,39 +1173,41 @@
                             </div>
 
 
+                            {{-- DATES --}}
 
                             <div
                                 class="
                                     mt-4
+
                                     grid
-                                    grid-cols-2
-                                    gap-3
+                                    grid-cols-[1fr_auto_1fr]
+                                    items-center
+                                    gap-2
                                 "
                             >
 
                                 <div
                                     class="
                                         rounded-xl
-                                        bg-brand-cream
+                                        bg-white
                                         p-3
                                     "
                                 >
-
                                     <p
                                         class="
-                                            text-[9px]
-                                            text-brand-dark/40
+                                            text-[8px]
+                                            text-brand-dark/35
                                         "
                                     >
-                                        Tanggal Naik
+                                        Naik
                                     </p>
-
 
                                     <p
                                         class="
                                             mt-1
-                                            text-xs
-                                            font-bold
+
+                                            text-[10px]
+                                            font-black
                                         "
                                     >
                                         {{
@@ -1925,33 +1218,63 @@
                                                 )
                                         }}
                                     </p>
+                                </div>
 
+
+                                <div
+                                    class="
+                                        flex
+                                        h-7
+                                        w-7
+
+                                        items-center
+                                        justify-center
+
+                                        rounded-full
+
+                                        bg-white
+
+                                        text-brand-dark/30
+                                    "
+                                >
+                                    <svg
+                                        class="h-3.5 w-3.5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M5 12h14m-4-4 4 4-4 4"
+                                        />
+                                    </svg>
                                 </div>
 
 
                                 <div
                                     class="
                                         rounded-xl
-                                        bg-brand-cream
+                                        bg-white
                                         p-3
                                     "
                                 >
-
                                     <p
                                         class="
-                                            text-[9px]
-                                            text-brand-dark/40
+                                            text-[8px]
+                                            text-brand-dark/35
                                         "
                                     >
-                                        Tanggal Turun
+                                        Turun
                                     </p>
-
 
                                     <p
                                         class="
                                             mt-1
-                                            text-xs
-                                            font-bold
+
+                                            text-[10px]
+                                            font-black
                                         "
                                     >
                                         {{
@@ -1962,44 +1285,62 @@
                                                 )
                                         }}
                                     </p>
-
                                 </div>
 
                             </div>
 
 
+                            {{-- DETAIL --}}
 
                             <div
                                 class="
                                     mt-3
+
                                     flex
                                     items-center
                                     justify-between
                                     gap-3
-                                    text-[10px]
-                                    text-brand-dark/50
+
+                                    border-t
+                                    border-brand-dark/[0.06]
+
+                                    pt-3
+
+                                    text-[9px]
+                                    text-brand-dark/45
                                 "
                             >
-
                                 <span>
-                                    {{
-                                        $simaksi
-                                            ->jumlah_anggota
-                                    }}
+                                    <strong
+                                        class="
+                                            text-brand-dark
+                                        "
+                                    >
+                                        {{
+                                            $simaksi
+                                                ->jumlah_anggota
+                                        }}
+                                    </strong>
+
                                     anggota
                                 </span>
 
 
-                                <span>
+                                <span
+                                    class="
+                                        truncate
+                                        text-right
+                                    "
+                                >
                                     {{
                                         $simaksi
                                             ->nomor_darurat
                                     }}
                                 </span>
-
                             </div>
 
 
+                            {{-- ADMIN NOTE --}}
 
                             @if(
                                 $simaksi->catatan_admin
@@ -2008,17 +1349,21 @@
                                 <div
                                     class="
                                         mt-3
+
                                         rounded-xl
-                                        bg-brand-dark/[0.04]
+
+                                        bg-white
+
                                         p-3
                                     "
                                 >
-
                                     <p
                                         class="
-                                            text-[9px]
-                                            font-bold
-                                            text-brand-dark/50
+                                            text-[8px]
+                                            font-black
+                                            uppercase
+                                            tracking-wide
+                                            text-brand-dark/35
                                         "
                                     >
                                         Catatan Admin
@@ -2028,9 +1373,10 @@
                                     <p
                                         class="
                                             mt-1
-                                            text-[10px]
-                                            leading-relaxed
-                                            text-brand-dark/65
+
+                                            text-[9px]
+                                            leading-5
+                                            text-brand-dark/60
                                         "
                                     >
                                         {{
@@ -2038,108 +1384,251 @@
                                                 ->catatan_admin
                                         }}
                                     </p>
-
                                 </div>
 
                             @endif
 
-                        </div>
+                        </article>
 
 
+                    @empty
 
                         <div
                             class="
-                                border-t
-                                border-brand-dark/5
-                                bg-brand-cream/50
-                                px-4
-                                py-2.5
+                                rounded-2xl
+
+                                bg-brand-cream
+
+                                px-5
+                                py-10
+
+                                text-center
                             "
                         >
+                            <div
+                                class="
+                                    mx-auto
+
+                                    flex
+                                    h-10
+                                    w-10
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-full
+
+                                    bg-white
+
+                                    text-brand-dark/30
+                                "
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M9 12h6m-6 4h4M6 3h9l3 3v15H6V3Z"
+                                    />
+                                </svg>
+                            </div>
+
 
                             <p
                                 class="
-                                    text-[9px]
-                                    text-brand-dark/35
+                                    mt-3
+
+                                    text-xs
+                                    font-black
                                 "
                             >
-                                Diajukan
-                                {{
-                                    $simaksi
-                                        ->created_at
-                                        ->format(
-                                            'd/m/Y H:i'
-                                        )
-                                }}
+                                Belum ada SIMAKSI
                             </p>
 
+
+                            <p
+                                class="
+                                    mt-1
+
+                                    text-[9px]
+                                    leading-5
+                                    text-brand-dark/40
+                                "
+                            >
+                                Tekan Ajukan SIMAKSI untuk
+                                membuat permohonan baru.
+                            </p>
                         </div>
 
-                    </article>
+                    @endforelse
+
+                </div>
 
 
-                @empty
+                {{-- ================================================= --}}
+                {{-- PAGINATION --}}
+                {{-- ================================================= --}}
+
+                @if(
+                    $simaksis->hasPages()
+                )
 
                     <div
                         class="
-                            rounded-2xl
-                            border
-                            border-dashed
-                            border-brand-dark/15
-                            bg-white
-                            py-10
-                            text-center
+                            flex
+                            items-center
+                            justify-between
+
+                            border-t
+                            border-brand-dark/[0.06]
+
+                            pt-3
                         "
                     >
 
-                        <p
+                        @if(
+                            $simaksis->onFirstPage()
+                        )
+
+                            <span
+                                class="
+                                    flex
+                                    h-9
+                                    w-9
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-xl
+
+                                    bg-brand-cream
+
+                                    text-[10px]
+                                    text-brand-dark/20
+                                "
+                            >
+                                ←
+                            </span>
+
+                        @else
+
+                            <a
+                                href="{{
+                                    $simaksis
+                                        ->previousPageUrl()
+                                }}"
+                                data-simaksi-page
+                                class="
+                                    flex
+                                    h-9
+                                    w-9
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-xl
+
+                                    bg-brand-cream
+
+                                    text-[10px]
+                                    font-black
+                                "
+                            >
+                                ←
+                            </a>
+
+                        @endif
+
+
+                        <span
                             class="
-                                text-sm
+                                text-[8px]
                                 font-bold
-                            "
-                        >
-                            Belum ada SIMAKSI
-                        </p>
-
-
-                        <p
-                            class="
-                                mt-1
-                                text-xs
                                 text-brand-dark/40
                             "
                         >
-                            Kirim permohonan melalui form di atas.
-                        </p>
+                            {{
+                                $simaksis
+                                    ->currentPage()
+                            }}
+
+                            /
+
+                            {{
+                                $simaksis
+                                    ->lastPage()
+                            }}
+                        </span>
+
+
+                        @if(
+                            $simaksis->hasMorePages()
+                        )
+
+                            <a
+                                href="{{
+                                    $simaksis
+                                        ->nextPageUrl()
+                                }}"
+                                data-simaksi-page
+                                class="
+                                    flex
+                                    h-9
+                                    w-9
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-xl
+
+                                    bg-brand-dark
+
+                                    text-[10px]
+                                    font-black
+                                    text-white
+                                "
+                            >
+                                →
+                            </a>
+
+                        @else
+
+                            <span
+                                class="
+                                    flex
+                                    h-9
+                                    w-9
+
+                                    items-center
+                                    justify-center
+
+                                    rounded-xl
+
+                                    bg-brand-cream
+
+                                    text-[10px]
+                                    text-brand-dark/20
+                                "
+                            >
+                                →
+                            </span>
+
+                        @endif
 
                     </div>
 
-                @endforelse
+                @endif
 
             </div>
-
-
-
-            {{-- ================================================= --}}
-            {{-- PAGINATION --}}
-            {{-- ================================================= --}}
-
-            @if(
-                $simaksis->hasPages()
-            )
-
-                <div
-                    class="pt-2"
-                >
-                    {{ $simaksis->links() }}
-                </div>
-
-            @endif
 
         </section>
 
     </main>
-
 
 
     {{-- ========================================================= --}}
@@ -2149,43 +1638,644 @@
     @include(
         'pendaki.components.bottom-nav',
         [
-            'active' => 'simaksi'
+            'active' => 'simaksi',
         ]
     )
 
 
+    {{-- ========================================================= --}}
+    {{-- MODAL --}}
+    {{-- ========================================================= --}}
+
+    <div
+        id="simaksiModal"
+        class="
+            fixed
+            inset-0
+            z-[99999]
+
+            items-end
+            justify-center
+
+            bg-black/40
+
+            sm:items-center
+            sm:p-4
+        "
+        aria-hidden="true"
+    >
+
+        {{-- BACKDROP --}}
+
+        <button
+            type="button"
+            id="simaksiModalBackdrop"
+            class="
+                absolute
+                inset-0
+
+                h-full
+                w-full
+            "
+            tabindex="-1"
+            aria-label="Tutup modal"
+        ></button>
+
+
+        {{-- MODAL SHEET --}}
+
+        <div
+            class="
+                modal-sheet
+
+                relative
+                z-10
+
+                flex
+                w-full
+                max-w-md
+                flex-col
+
+                overflow-hidden
+
+                rounded-t-3xl
+
+                bg-white
+
+                shadow-2xl
+
+                sm:rounded-3xl
+            "
+        >
+
+            {{-- DRAG HANDLE --}}
+
+            <div
+                class="
+                    shrink-0
+
+                    pb-1
+                    pt-3
+
+                    sm:hidden
+                "
+            >
+                <div
+                    class="
+                        mx-auto
+                        h-1
+                        w-10
+                        rounded-full
+                        bg-brand-dark/10
+                    "
+                ></div>
+            </div>
+
+
+            {{-- HEADER MODAL --}}
+
+            <div
+                class="
+                    shrink-0
+
+                    border-b
+                    border-brand-dark/[0.06]
+
+                    px-5
+                    pb-4
+                    pt-3
+                "
+            >
+                <div
+                    class="
+                        flex
+                        items-start
+                        justify-between
+                        gap-3
+                    "
+                >
+
+                    <div>
+
+                        <p
+                            class="
+                                text-[8px]
+                                font-black
+                                uppercase
+                                tracking-[0.15em]
+                                text-brand-orange
+                            "
+                        >
+                            Izin Pendakian
+                        </p>
+
+
+                        <h2
+                            class="
+                                mt-1
+
+                                text-lg
+                                font-black
+                            "
+                        >
+                            Ajukan SIMAKSI
+                        </h2>
+
+
+                        <p
+                            class="
+                                mt-1
+
+                                text-[9px]
+                                text-brand-dark/40
+                            "
+                        >
+                            Isi informasi perjalanan dengan benar.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="closeSimaksiModal"
+                        class="
+                            flex
+                            h-9
+                            w-9
+
+                            shrink-0
+
+                            items-center
+                            justify-center
+
+                            rounded-xl
+
+                            bg-brand-dark/5
+
+                            text-brand-dark/50
+
+                            active:bg-brand-dark/10
+                        "
+                    >
+                        <svg
+                            class="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M6 18 18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="formError"
+                    class="
+                        mt-3
+                        hidden
+
+                        rounded-xl
+
+                        bg-red-50
+
+                        px-3
+                        py-2
+
+                        text-[9px]
+                        font-semibold
+                        leading-5
+                        text-red-700
+                    "
+                ></div>
+
+            </div>
+
+
+            {{-- ================================================= --}}
+            {{-- FORM --}}
+            {{-- ================================================= --}}
+
+            <form
+                id="simaksiForm"
+                action="{{ route('pendaki.simaksi.store') }}"
+                method="POST"
+                class="
+                    flex
+                    min-h-0
+                    flex-1
+                    flex-col
+                "
+            >
+                @csrf
+
+
+                {{-- ============================================= --}}
+                {{-- SCROLLABLE BODY --}}
+                {{-- ============================================= --}}
+
+                <div
+                    class="
+                        min-h-0
+                        flex-1
+
+                        space-y-4
+
+                        overflow-y-auto
+                        overscroll-contain
+
+                        px-5
+                        py-4
+                    "
+                >
+
+                    {{-- GUNUNG --}}
+
+                    <div>
+                        <label
+                            for="gunung"
+                            class="
+                                mb-1.5
+                                block
+                                text-[9px]
+                                font-black
+                            "
+                        >
+                            Pilih Gunung
+                        </label>
+
+
+                        <select
+                            id="gunung"
+                            name="gunung"
+                            required
+                            class="
+                                h-11
+                                w-full
+
+                                rounded-xl
+
+                                border
+                                border-brand-dark/15
+
+                                bg-brand-cream
+
+                                px-3
+
+                                text-[10px]
+                                font-bold
+
+                                outline-none
+
+                                focus:border-brand-orange
+                            "
+                        >
+                            <option value="">
+                                Pilih gunung
+                            </option>
+
+
+                            @foreach(
+                                $mountains
+                                as $mountain
+                            )
+
+                                <option
+                                    value="{{ $mountain->name }}"
+                                >
+                                    {{ $mountain->name }}
+
+                                    @if(
+                                        $mountain->elevation_m
+                                    )
+
+                                        ({{
+                                            number_format(
+                                                $mountain->elevation_m,
+                                                0,
+                                                ',',
+                                                '.'
+                                            )
+                                        }} mdpl)
+
+                                    @endif
+                                </option>
+
+                            @endforeach
+                        </select>
+                    </div>
+
+
+                    {{-- DATES --}}
+
+                    <div
+                        class="
+                            grid
+                            grid-cols-2
+                            gap-3
+                        "
+                    >
+
+                        <div>
+
+                            <label
+                                for="tanggal_naik"
+                                class="
+                                    mb-1.5
+                                    block
+                                    text-[9px]
+                                    font-black
+                                "
+                            >
+                                Tanggal Naik
+                            </label>
+
+
+                            <input
+                                type="date"
+                                id="tanggal_naik"
+                                name="tanggal_naik"
+                                required
+                                class="
+                                    h-11
+                                    w-full
+
+                                    rounded-xl
+
+                                    border
+                                    border-brand-dark/15
+
+                                    bg-brand-cream
+
+                                    px-3
+
+                                    text-[9px]
+                                    font-semibold
+
+                                    outline-none
+
+                                    focus:border-brand-orange
+                                "
+                            >
+
+                        </div>
+
+
+                        <div>
+
+                            <label
+                                for="tanggal_turun"
+                                class="
+                                    mb-1.5
+                                    block
+                                    text-[9px]
+                                    font-black
+                                "
+                            >
+                                Tanggal Turun
+                            </label>
+
+
+                            <input
+                                type="date"
+                                id="tanggal_turun"
+                                name="tanggal_turun"
+                                required
+                                class="
+                                    h-11
+                                    w-full
+
+                                    rounded-xl
+
+                                    border
+                                    border-brand-dark/15
+
+                                    bg-brand-cream
+
+                                    px-3
+
+                                    text-[9px]
+                                    font-semibold
+
+                                    outline-none
+
+                                    focus:border-brand-orange
+                                "
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    {{-- ANGGOTA --}}
+
+                    <div>
+
+                        <label
+                            for="jumlah_anggota"
+                            class="
+                                mb-1.5
+                                block
+                                text-[9px]
+                                font-black
+                            "
+                        >
+                            Jumlah Anggota
+                        </label>
+
+
+                        <input
+                            type="number"
+                            id="jumlah_anggota"
+                            name="jumlah_anggota"
+                            value="1"
+                            min="1"
+                            max="100"
+                            required
+                            class="
+                                h-11
+                                w-full
+
+                                rounded-xl
+
+                                border
+                                border-brand-dark/15
+
+                                bg-brand-cream
+
+                                px-3
+
+                                text-[10px]
+                                font-bold
+
+                                outline-none
+
+                                focus:border-brand-orange
+                            "
+                        >
+
+                    </div>
+
+
+                    {{-- DARURAT --}}
+
+                    <div>
+
+                        <label
+                            for="nomor_darurat"
+                            class="
+                                mb-1.5
+                                block
+                                text-[9px]
+                                font-black
+                            "
+                        >
+                            Nomor Kontak Darurat
+                        </label>
+
+
+                        <input
+                            type="tel"
+                            id="nomor_darurat"
+                            name="nomor_darurat"
+                            placeholder="08xxxxxxxxxx"
+                            required
+                            class="
+                                h-11
+                                w-full
+
+                                rounded-xl
+
+                                border
+                                border-brand-dark/15
+
+                                bg-brand-cream
+
+                                px-3
+
+                                text-[10px]
+                                font-semibold
+
+                                outline-none
+
+                                placeholder:text-brand-dark/25
+
+                                focus:border-brand-orange
+                            "
+                        >
+
+                    </div>
+
+
+                    {{-- OFFLINE INFO --}}
+
+                    <div
+                        class="
+                            rounded-xl
+                            bg-brand-dark/[0.04]
+                            p-3
+                        "
+                    >
+                        <p
+                            class="
+                                text-[8px]
+                                leading-5
+                                text-brand-dark/40
+                            "
+                        >
+                            Jika koneksi terputus, permohonan akan
+                            disimpan sementara di perangkat dan dikirim
+                            otomatis setelah koneksi kembali.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                {{-- ============================================= --}}
+                {{-- FIXED / STICKY FOOTER --}}
+                {{-- ============================================= --}}
+
+                <div
+                    class="
+                        shrink-0
+
+                        border-t
+                        border-brand-dark/[0.06]
+
+                        bg-white
+
+                        px-5
+                        pt-3
+
+                        pb-[calc(12px+env(safe-area-inset-bottom))]
+                    "
+                >
+                    <button
+                        type="submit"
+                        id="submitButton"
+                        class="
+                            flex
+                            h-11
+                            w-full
+
+                            items-center
+                            justify-center
+
+                            rounded-xl
+
+                            bg-brand-orange
+
+                            text-[10px]
+                            font-black
+                            text-white
+
+                            shadow-lg
+                            shadow-brand-orange/20
+
+                            active:scale-[0.98]
+
+                            disabled:opacity-50
+                        "
+                    >
+                        <span id="submitText">
+                            Kirim Permohonan SIMAKSI
+                        </span>
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
 
     {{-- ========================================================= --}}
-    {{-- OFFLINE ENGINE --}}
+    {{-- JAVASCRIPT --}}
     {{-- ========================================================= --}}
 
     <script>
-
         /*
         |--------------------------------------------------------------------------
         | CONFIG
         |--------------------------------------------------------------------------
         */
 
-        const SIMAKSI_DB_NAME =
-            'balihiking-simaksi';
-
-
-        const SIMAKSI_DB_VERSION =
-            1;
-
-
-        const SIMAKSI_STORE =
-            'simaksi_queue';
-
-
-        const simaksiEndpoint =
+        const simaksiStoreEndpoint =
             @json(
                 route(
                     'pendaki.simaksi.store'
                 )
             );
-
 
         const csrfToken =
             document
@@ -2194,47 +2284,283 @@
                 )
                 .content;
 
+        const DB_NAME =
+            'balihiking-simaksi';
 
-        let simaksiDb =
+        const DB_VERSION =
+            1;
+
+        const DB_STORE =
+            'simaksi_queue';
+
+
+        let dbInstance =
             null;
 
-
-        let syncing =
+        let syncRunning =
             false;
 
+        let reportAbortController =
+            null;
+
+        let toastTimer =
+            null;
 
 
         /*
         |--------------------------------------------------------------------------
-        | DB
+        | ELEMENTS
         |--------------------------------------------------------------------------
         */
 
-        function openDb() {
+        const modal =
+            document.getElementById(
+                'simaksiModal'
+            );
+
+        const openModalButton =
+            document.getElementById(
+                'openSimaksiModal'
+            );
+
+        const closeModalButton =
+            document.getElementById(
+                'closeSimaksiModal'
+            );
+
+        const modalBackdrop =
+            document.getElementById(
+                'simaksiModalBackdrop'
+            );
+
+        const form =
+            document.getElementById(
+                'simaksiForm'
+            );
+
+        const formError =
+            document.getElementById(
+                'formError'
+            );
+
+        const submitButton =
+            document.getElementById(
+                'submitButton'
+            );
+
+        const submitText =
+            document.getElementById(
+                'submitText'
+            );
+
+        const networkStatus =
+            document.getElementById(
+                'networkStatus'
+            );
+
+        const toast =
+            document.getElementById(
+                'toast'
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        function openModal()
+        {
+            hideFormError();
+
+            setupDates();
+
+            modal
+                .classList
+                .add(
+                    'show'
+                );
+
+            modal.setAttribute(
+                'aria-hidden',
+                'false'
+            );
+
+            document
+                .body
+                .classList
+                .add(
+                    'modal-open'
+                );
+        }
+
+
+        function closeModal()
+        {
+            modal
+                .classList
+                .remove(
+                    'show'
+                );
+
+            modal.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            document
+                .body
+                .classList
+                .remove(
+                    'modal-open'
+                );
+
+            hideFormError();
+        }
+
+
+        openModalButton
+            .addEventListener(
+                'click',
+                openModal
+            );
+
+
+        closeModalButton
+            .addEventListener(
+                'click',
+                closeModal
+            );
+
+
+        modalBackdrop
+            .addEventListener(
+                'click',
+                closeModal
+            );
+
+
+        document
+            .addEventListener(
+                'keydown',
+                function (
+                    event
+                ) {
+                    if (
+                        event.key ===
+                        'Escape'
+                    ) {
+                        closeModal();
+                    }
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOAST
+        |--------------------------------------------------------------------------
+        */
+
+        function showToast(
+            message
+        ) {
+            if (
+                toastTimer
+            ) {
+                clearTimeout(
+                    toastTimer
+                );
+            }
+
+
+            toast.textContent =
+                message;
+
+
+            toast
+                .classList
+                .add(
+                    'show'
+                );
+
+
+            toastTimer =
+                setTimeout(
+                    function () {
+                        toast
+                            .classList
+                            .remove(
+                                'show'
+                            );
+                    },
+                    2600
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORM ERROR
+        |--------------------------------------------------------------------------
+        */
+
+        function showFormError(
+            message
+        ) {
+            formError.textContent =
+                message;
+
+
+            formError
+                .classList
+                .remove(
+                    'hidden'
+                );
+        }
+
+
+        function hideFormError()
+        {
+            formError.textContent =
+                '';
+
+
+            formError
+                .classList
+                .add(
+                    'hidden'
+                );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INDEXED DB
+        |--------------------------------------------------------------------------
+        */
+
+        function openDb()
+        {
+            if (
+                dbInstance
+            ) {
+                return Promise.resolve(
+                    dbInstance
+                );
+            }
+
 
             return new Promise(
                 function (
                     resolve,
                     reject
                 ) {
-
-                    if (
-                        simaksiDb
-                    ) {
-
-                        resolve(
-                            simaksiDb
-                        );
-
-                        return;
-
-                    }
-
-
                     const request =
                         indexedDB.open(
-                            SIMAKSI_DB_NAME,
-                            SIMAKSI_DB_VERSION
+                            DB_NAME,
+                            DB_VERSION
                         );
 
 
@@ -2242,31 +2568,28 @@
                         function (
                             event
                         ) {
-
                             const db =
                                 event.target.result;
 
 
                             if (
-                                !db.objectStoreNames
+                                !db
+                                    .objectStoreNames
                                     .contains(
-                                        SIMAKSI_STORE
+                                        DB_STORE
                                     )
                             ) {
-
                                 db.createObjectStore(
-                                    SIMAKSI_STORE,
+                                    DB_STORE,
                                     {
                                         keyPath:
                                             'id',
 
                                         autoIncrement:
-                                            true
+                                            true,
                                     }
                                 );
-
                             }
-
                         };
 
 
@@ -2274,36 +2597,29 @@
                         function (
                             event
                         ) {
-
-                            simaksiDb =
+                            dbInstance =
                                 event.target.result;
 
 
                             resolve(
-                                simaksiDb
+                                dbInstance
                             );
-
                         };
 
 
                     request.onerror =
                         function () {
-
                             reject(
                                 request.error
                             );
-
                         };
-
                 }
             );
-
         }
 
 
-
-        async function getQueue() {
-
+        async function getQueue()
+        {
             const db =
                 await openDb();
 
@@ -2313,10 +2629,9 @@
                     resolve,
                     reject
                 ) {
-
                     const transaction =
                         db.transaction(
-                            SIMAKSI_STORE,
+                            DB_STORE,
                             'readonly'
                         );
 
@@ -2324,7 +2639,7 @@
                     const store =
                         transaction
                             .objectStore(
-                                SIMAKSI_STORE
+                                DB_STORE
                             );
 
 
@@ -2334,36 +2649,28 @@
 
                     request.onsuccess =
                         function () {
-
                             resolve(
                                 request.result
                                 ||
                                 []
                             );
-
                         };
 
 
                     request.onerror =
                         function () {
-
                             reject(
                                 request.error
                             );
-
                         };
-
                 }
             );
-
         }
-
 
 
         async function addQueue(
             payload
         ) {
-
             const db =
                 await openDb();
 
@@ -2373,10 +2680,9 @@
                     resolve,
                     reject
                 ) {
-
                     const transaction =
                         db.transaction(
-                            SIMAKSI_STORE,
+                            DB_STORE,
                             'readwrite'
                         );
 
@@ -2384,7 +2690,7 @@
                     const store =
                         transaction
                             .objectStore(
-                                SIMAKSI_STORE
+                                DB_STORE
                             );
 
 
@@ -2394,38 +2700,30 @@
                                 payload,
 
                             created_at:
-                                Date.now()
+                                Date.now(),
                         });
 
 
                     request.onsuccess =
                         function () {
-
                             resolve();
-
                         };
 
 
                     request.onerror =
                         function () {
-
                             reject(
                                 request.error
                             );
-
                         };
-
                 }
             );
-
         }
-
 
 
         async function deleteQueue(
             id
         ) {
-
             const db =
                 await openDb();
 
@@ -2435,10 +2733,9 @@
                     resolve,
                     reject
                 ) {
-
                     const transaction =
                         db.transaction(
-                            SIMAKSI_STORE,
+                            DB_STORE,
                             'readwrite'
                         );
 
@@ -2446,7 +2743,7 @@
                     const store =
                         transaction
                             .objectStore(
-                                SIMAKSI_STORE
+                                DB_STORE
                             );
 
 
@@ -2457,23 +2754,247 @@
 
 
                     request.onsuccess =
-                        resolve;
+                        function () {
+                            resolve();
+                        };
 
 
                     request.onerror =
                         function () {
-
                             reject(
                                 request.error
                             );
-
                         };
+                }
+            );
+        }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | AJAX REPORT
+        |--------------------------------------------------------------------------
+        */
+
+        async function loadReport(
+            url,
+            pushState = true
+        ) {
+            const panel =
+                document.getElementById(
+                    'simaksiReportPanel'
+                );
+
+
+            if (
+                !panel
+            ) {
+                return;
+            }
+
+
+            if (
+                reportAbortController
+            ) {
+                reportAbortController
+                    .abort();
+            }
+
+
+            reportAbortController =
+                new AbortController();
+
+
+            panel
+                .classList
+                .add(
+                    'is-loading'
+                );
+
+
+            try {
+                const response =
+                    await fetch(
+                        url,
+                        {
+                            method:
+                                'GET',
+
+                            credentials:
+                                'same-origin',
+
+                            headers: {
+                                'Accept':
+                                    'text/html',
+
+                                'X-Requested-With':
+                                    'XMLHttpRequest',
+                            },
+
+                            signal:
+                                reportAbortController
+                                    .signal,
+                        }
+                    );
+
+
+                if (
+                    !response.ok
+                ) {
+                    throw new Error(
+                        'Gagal memuat SIMAKSI.'
+                    );
+                }
+
+
+                const html =
+                    await response.text();
+
+
+                const parsed =
+                    new DOMParser()
+                        .parseFromString(
+                            html,
+                            'text/html'
+                        );
+
+
+                const newPanel =
+                    parsed
+                        .getElementById(
+                            'simaksiReportPanel'
+                        );
+
+
+                if (
+                    !newPanel
+                ) {
+                    throw new Error(
+                        'Panel SIMAKSI tidak ditemukan.'
+                    );
+                }
+
+
+                panel.replaceWith(
+                    newPanel
+                );
+
+
+                if (
+                    pushState
+                ) {
+                    history.pushState(
+                        {},
+                        '',
+                        url
+                    );
+                }
+
+
+                await renderOfflineQueue();
+
+            } catch (
+                error
+            ) {
+                if (
+                    error.name ===
+                    'AbortError'
+                ) {
+                    return;
+                }
+
+
+                console.error(
+                    error
+                );
+
+
+                showToast(
+                    'Data SIMAKSI gagal dimuat.'
+                );
+
+            } finally {
+                document
+                    .getElementById(
+                        'simaksiReportPanel'
+                    )
+                    ?.classList
+                    .remove(
+                        'is-loading'
+                    );
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER / PAGINATION
+        |--------------------------------------------------------------------------
+        */
+
+        document
+            .addEventListener(
+                'click',
+                function (
+                    event
+                ) {
+                    const filter =
+                        event
+                            .target
+                            .closest(
+                                '[data-simaksi-filter]'
+                            );
+
+
+                    if (
+                        filter
+                    ) {
+                        event.preventDefault();
+
+
+                        loadReport(
+                            filter.href,
+                            true
+                        );
+
+
+                        return;
+                    }
+
+
+                    const pagination =
+                        event
+                            .target
+                            .closest(
+                                '[data-simaksi-page]'
+                            );
+
+
+                    if (
+                        pagination
+                    ) {
+                        event.preventDefault();
+
+
+                        loadReport(
+                            pagination.href,
+                            true
+                        );
+                    }
                 }
             );
 
-        }
 
+        window
+            .addEventListener(
+                'popstate',
+                function () {
+                    loadReport(
+                        window.location.href,
+                        false
+                    );
+                }
+            );
 
 
         /*
@@ -2482,99 +3003,78 @@
         |--------------------------------------------------------------------------
         */
 
-        const form =
-            document.getElementById(
-                'simaksiForm'
-            );
-
-
-        const submitButton =
-            document.getElementById(
-                'submitButton'
-            );
-
-
-        const submitText =
-            document.getElementById(
-                'submitText'
-            );
-
-
-        form.addEventListener(
-            'submit',
-            async function (
-                event
-            ) {
-
-                event.preventDefault();
-
-
-                const payload = {
-
-                    gunung:
-                        form.gunung.value,
-
-                    tanggal_naik:
-                        form.tanggal_naik.value,
-
-                    tanggal_turun:
-                        form.tanggal_turun.value,
-
-                    jumlah_anggota:
-                        form.jumlah_anggota.value,
-
-                    nomor_darurat:
-                        form.nomor_darurat.value,
-
-                };
-
-
-                if (
-                    !navigator.onLine
+        form
+            .addEventListener(
+                'submit',
+                async function (
+                    event
                 ) {
+                    event.preventDefault();
 
-                    await addQueue(
+
+                    hideFormError();
+
+
+                    const payload = {
+                        gunung:
+                            form.gunung.value,
+
+                        tanggal_naik:
+                            form.tanggal_naik.value,
+
+                        tanggal_turun:
+                            form.tanggal_turun.value,
+
+                        jumlah_anggota:
+                            form.jumlah_anggota.value,
+
+                        nomor_darurat:
+                            form.nomor_darurat.value,
+                    };
+
+
+                    if (
+                        !navigator.onLine
+                    ) {
+                        await addQueue(
+                            payload
+                        );
+
+
+                        resetForm();
+
+
+                        closeModal();
+
+
+                        await renderOfflineQueue();
+
+
+                        showToast(
+                            'SIMAKSI disimpan offline dan akan dikirim otomatis.'
+                        );
+
+
+                        return;
+                    }
+
+
+                    await submitSimaksi(
                         payload
                     );
-
-
-                    await renderOfflineQueue();
-
-
-                    alert(
-                        'Permohonan SIMAKSI disimpan di perangkat dan akan dikirim ketika internet kembali.'
-                    );
-
-
-                    form.reset();
-
-                    form.jumlah_anggota.value =
-                        1;
-
-
-                    return;
-
                 }
-
-
-                await sendPayload(
-                    payload
-                );
-
-        });
-
+            );
 
 
         /*
         |--------------------------------------------------------------------------
-        | SEND
+        | ONLINE SUBMIT
         |--------------------------------------------------------------------------
         */
 
-        async function sendPayload(
+        async function submitSimaksi(
             payload
         ) {
-
             submitButton.disabled =
                 true;
 
@@ -2584,12 +3084,10 @@
 
 
             try {
-
                 const response =
                     await fetch(
-                        simaksiEndpoint,
+                        simaksiStoreEndpoint,
                         {
-
                             method:
                                 'POST',
 
@@ -2597,7 +3095,6 @@
                                 'same-origin',
 
                             headers: {
-
                                 'Accept':
                                     'application/json',
 
@@ -2605,118 +3102,159 @@
                                     'application/json',
 
                                 'X-CSRF-TOKEN':
-                                    csrfToken
+                                    csrfToken,
 
+                                'X-Requested-With':
+                                    'XMLHttpRequest',
                             },
 
                             body:
                                 JSON.stringify(
                                     payload
-                                )
-
+                                ),
                         }
                     );
-
-
-                const data =
-                    await response.json();
 
 
                 if (
                     !response.ok
                 ) {
-
                     let message =
-                        data.message
-                        ||
                         'Permohonan gagal dikirim.';
 
 
-                    if (
-                        data.errors
-                    ) {
-
-                        message =
-                            Object.values(
-                                data.errors
+                    const contentType =
+                        response
+                            .headers
+                            .get(
+                                'content-type'
                             )
-                            .flat()
-                            .join(
-                                '\n'
-                            );
+                        ||
+                        '';
 
+
+                    if (
+                        contentType.includes(
+                            'application/json'
+                        )
+                    ) {
+                        const data =
+                            await response.json();
+
+
+                        if (
+                            data.errors
+                        ) {
+                            message =
+                                Object
+                                    .values(
+                                        data.errors
+                                    )
+                                    .flat()
+                                    .join(
+                                        ' '
+                                    );
+
+                        } else if (
+                            data.message
+                        ) {
+                            message =
+                                data.message;
+                        }
                     }
 
 
-                    alert(
+                    showFormError(
                         message
                     );
 
 
-                    return false;
-
+                    return;
                 }
 
 
-                window.location.href =
-                    @json(
-                        route(
-                            'pendaki.simaksi'
-                        )
-                    );
+                resetForm();
 
 
-                return true;
+                closeModal();
 
+
+                await loadReport(
+                    window.location.href,
+                    false
+                );
+
+
+                showToast(
+                    'Permohonan SIMAKSI berhasil dikirim.'
+                );
 
             } catch (
                 error
             ) {
+                console.error(
+                    error
+                );
+
 
                 await addQueue(
                     payload
                 );
 
 
+                resetForm();
+
+
+                closeModal();
+
+
                 await renderOfflineQueue();
 
 
-                alert(
-                    'Koneksi terputus. Permohonan diamankan di perangkat.'
+                showToast(
+                    'Koneksi terputus. SIMAKSI disimpan di perangkat.'
                 );
 
-
-                return false;
-
-
             } finally {
-
-
                 submitButton.disabled =
                     false;
 
 
                 submitText.textContent =
-                    navigator.onLine
-                        ?
-                        'Kirim Permohonan SIMAKSI →'
-                        :
-                        'Simpan SIMAKSI Offline';
-
+                    'Kirim Permohonan SIMAKSI';
             }
-
         }
-
 
 
         /*
         |--------------------------------------------------------------------------
-        | RENDER OFFLINE QUEUE
+        | RESET FORM
         |--------------------------------------------------------------------------
         */
 
-        async function renderOfflineQueue() {
+        function resetForm()
+        {
+            form.reset();
 
+
+            form
+                .jumlah_anggota
+                .value =
+                    1;
+
+
+            setupDates();
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OFFLINE QUEUE
+        |--------------------------------------------------------------------------
+        */
+
+        async function renderOfflineQueue()
+        {
             const queue =
                 await getQueue();
 
@@ -2740,10 +3278,20 @@
 
 
             if (
-                queue.length ===
-                    0
+                !container
+                ||
+                !list
+                ||
+                !badge
             ) {
+                return;
+            }
 
+
+            if (
+                queue.length ===
+                0
+            ) {
                 container
                     .classList
                     .add(
@@ -2758,8 +3306,11 @@
                     );
 
 
-                return;
+                list.innerHTML =
+                    '';
 
+
+                return;
             }
 
 
@@ -2778,7 +3329,7 @@
 
 
             badge.textContent =
-                `${queue.length} menunggu sinkronisasi`;
+                `${queue.length} offline`;
 
 
             list.innerHTML =
@@ -2790,7 +3341,6 @@
                     item,
                     index
                 ) {
-
                     const payload =
                         item.payload;
 
@@ -2815,12 +3365,11 @@
                                 gap-3
                             "
                         >
-
-                            <div>
+                            <div class="min-w-0">
 
                                 <p
                                     class="
-                                        text-[9px]
+                                        text-[8px]
                                         font-black
                                         uppercase
                                         text-orange-700
@@ -2832,9 +3381,9 @@
                                 <p
                                     class="
                                         mt-1
+                                        truncate
                                         text-xs
                                         font-black
-                                        text-brand-dark
                                     "
                                 >
                                     ${escapeHtml(
@@ -2845,26 +3394,37 @@
                                 <p
                                     class="
                                         mt-1
-                                        text-[10px]
-                                        text-brand-dark/50
+                                        text-[9px]
+                                        text-brand-dark/45
                                     "
                                 >
-                                    ${formatDate(payload.tanggal_naik)}
-                                    -
-                                    ${formatDate(payload.tanggal_turun)}
+                                    ${formatDate(
+                                        payload.tanggal_naik
+                                    )}
+                                    –
+                                    ${formatDate(
+                                        payload.tanggal_turun
+                                    )}
                                     ·
-                                    ${escapeHtml(payload.jumlah_anggota)}
-                                    anggota
+                                    ${escapeHtml(
+                                        payload.jumlah_anggota
+                                    )}
+                                    orang
                                 </p>
 
                             </div>
 
                             <span
                                 class="
+                                    shrink-0
+
                                     rounded-full
+
                                     bg-orange-100
+
                                     px-2.5
                                     py-1
+
                                     text-[8px]
                                     font-black
                                     text-orange-700
@@ -2872,7 +3432,6 @@
                             >
                                 Belum Sinkron
                             </span>
-
                         </div>
                         `;
 
@@ -2880,12 +3439,9 @@
                     list.appendChild(
                         wrapper
                     );
-
                 }
             );
-
         }
-
 
 
         /*
@@ -2894,45 +3450,39 @@
         |--------------------------------------------------------------------------
         */
 
-        async function syncQueue() {
-
+        async function syncQueue()
+        {
             if (
                 !navigator.onLine
                 ||
-                syncing
+                syncRunning
             ) {
-
                 return;
-
             }
 
 
-            syncing =
+            syncRunning =
                 true;
 
 
-            try {
+            let synced =
+                0;
 
+
+            try {
                 const queue =
                     await getQueue();
-
-
-                let synced =
-                    0;
 
 
                 for (
                     const item
                     of queue
                 ) {
-
                     try {
-
                         const response =
                             await fetch(
-                                simaksiEndpoint,
+                                simaksiStoreEndpoint,
                                 {
-
                                     method:
                                         'POST',
 
@@ -2940,7 +3490,6 @@
                                         'same-origin',
 
                                     headers: {
-
                                         'Accept':
                                             'application/json',
 
@@ -2948,41 +3497,39 @@
                                             'application/json',
 
                                         'X-CSRF-TOKEN':
-                                            csrfToken
+                                            csrfToken,
 
+                                        'X-Requested-With':
+                                            'XMLHttpRequest',
                                     },
 
                                     body:
                                         JSON.stringify(
                                             item.payload
-                                        )
-
+                                        ),
                                 }
                             );
 
 
                         if (
-                            response.ok
+                            !response.ok
                         ) {
-
-                            await deleteQueue(
-                                item.id
-                            );
-
-
-                            synced++;
-
+                            break;
                         }
 
+
+                        await deleteQueue(
+                            item.id
+                        );
+
+
+                        synced++;
 
                     } catch (
                         error
                     ) {
-
                         break;
-
                     }
-
                 }
 
 
@@ -2991,23 +3538,24 @@
 
                 if (
                     synced >
-                        0
+                    0
                 ) {
+                    await loadReport(
+                        window.location.href,
+                        false
+                    );
 
-                    window.location.reload();
 
+                    showToast(
+                        `${synced} SIMAKSI berhasil disinkronkan.`
+                    );
                 }
 
-
             } finally {
-
-                syncing =
+                syncRunning =
                     false;
-
             }
-
         }
-
 
 
         /*
@@ -3016,74 +3564,54 @@
         |--------------------------------------------------------------------------
         */
 
-        function updateNetworkUI() {
-
-            const status =
-                document.getElementById(
-                    'networkStatus'
-                );
-
-
+        function updateNetwork()
+        {
             if (
                 navigator.onLine
             ) {
-
-                status
+                networkStatus
                     .classList
                     .remove(
                         'show'
                     );
 
-
-                submitText.textContent =
-                    'Kirim Permohonan SIMAKSI →';
-
-
             } else {
-
-
-                status
+                networkStatus
                     .classList
                     .add(
                         'show'
                     );
-
-
-                submitText.textContent =
-                    'Simpan SIMAKSI Offline';
-
             }
-
         }
 
 
-
-        window.addEventListener(
-            'online',
-            async function () {
-
-                updateNetworkUI();
-
-                await syncQueue();
-
-        });
+        window
+            .addEventListener(
+                'online',
+                async function () {
+                    updateNetwork();
 
 
-        window.addEventListener(
-            'offline',
-            updateNetworkUI
-        );
+                    await syncQueue();
+                }
+            );
 
+
+        window
+            .addEventListener(
+                'offline',
+                updateNetwork
+            );
 
 
         /*
         |--------------------------------------------------------------------------
-        | DATES
+        | DATE
         |--------------------------------------------------------------------------
         */
 
-        function setupDates() {
-
+        function setupDates()
+        {
             const naik =
                 document.getElementById(
                     'tanggal_naik'
@@ -3096,10 +3624,21 @@
                 );
 
 
+            if (
+                !naik
+                ||
+                !turun
+            ) {
+                return;
+            }
+
+
             const today =
                 new Date()
                     .toISOString()
-                    .split('T')[0];
+                    .split(
+                        'T'
+                    )[0];
 
 
             naik.min =
@@ -3107,13 +3646,13 @@
 
 
             turun.min =
-                today;
+                naik.value
+                    ||
+                    today;
 
 
-            naik.addEventListener(
-                'change',
+            naik.onchange =
                 function () {
-
                     turun.min =
                         naik.value;
 
@@ -3124,17 +3663,11 @@
                         turun.value <
                             naik.value
                     ) {
-
                         turun.value =
                             naik.value;
-
                     }
-
-                }
-            );
-
+                };
         }
-
 
 
         /*
@@ -3146,45 +3679,39 @@
         function escapeHtml(
             value
         ) {
-
             return String(
                 value ?? ''
             )
-            .replace(
-                /&/g,
-                '&amp;'
-            )
-            .replace(
-                /</g,
-                '&lt;'
-            )
-            .replace(
-                />/g,
-                '&gt;'
-            )
-            .replace(
-                /"/g,
-                '&quot;'
-            )
-            .replace(
-                /'/g,
-                '&#039;'
-            );
-
+                .replace(
+                    /&/g,
+                    '&amp;'
+                )
+                .replace(
+                    /</g,
+                    '&lt;'
+                )
+                .replace(
+                    />/g,
+                    '&gt;'
+                )
+                .replace(
+                    /"/g,
+                    '&quot;'
+                )
+                .replace(
+                    /'/g,
+                    '&#039;'
+                );
         }
-
 
 
         function formatDate(
             value
         ) {
-
             if (
                 !value
             ) {
-
                 return '-';
-
             }
 
 
@@ -3196,11 +3723,9 @@
 
             if (
                 parts.length !==
-                    3
+                3
             ) {
-
                 return value;
-
             }
 
 
@@ -3215,9 +3740,7 @@
                 +
                 parts[0]
             );
-
         }
-
 
 
         /*
@@ -3230,25 +3753,21 @@
             'serviceWorker'
             in navigator
         ) {
-
-            window.addEventListener(
-                'load',
-                function () {
-
-                    navigator
-                        .serviceWorker
-                        .register(
-                            '/sw.js'
-                        )
-                        .catch(
-                            console.error
-                        );
-
-                }
-            );
-
+            window
+                .addEventListener(
+                    'load',
+                    function () {
+                        navigator
+                            .serviceWorker
+                            .register(
+                                '/sw.js'
+                            )
+                            .catch(
+                                console.error
+                            );
+                    }
+                );
         }
-
 
 
         /*
@@ -3257,33 +3776,39 @@
         |--------------------------------------------------------------------------
         */
 
-        document.addEventListener(
-            'DOMContentLoaded',
-            async function () {
-
-                await openDb();
-
-                await renderOfflineQueue();
-
-                updateNetworkUI();
-
-                setupDates();
+        document
+            .addEventListener(
+                'DOMContentLoaded',
+                async function () {
+                    setupDates();
 
 
-                if (
-                    navigator.onLine
-                ) {
+                    updateNetwork();
 
-                    await syncQueue();
 
+                    try {
+                        await openDb();
+
+
+                        await renderOfflineQueue();
+
+
+                        if (
+                            navigator.onLine
+                        ) {
+                            await syncQueue();
+                        }
+
+                    } catch (
+                        error
+                    ) {
+                        console.error(
+                            error
+                        );
+                    }
                 }
-
-            }
-        );
-
+            );
     </script>
 
-
 </body>
-
 </html>

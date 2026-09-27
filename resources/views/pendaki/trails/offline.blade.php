@@ -1,812 +1,1869 @@
 <!DOCTYPE html>
+
 <html lang="id">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta
         name="viewport"
-        content="width=device-width, initial-scale=1.0"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <meta
+        name="theme-color"
+        content="#123d2c"
     >
 
     <title>
-        Peta Offline - {{ $trail->name }}
+        Download Map Offline - {{ $trail->name ?? 'BaliHiking' }}
     </title>
 
     <style>
-        * {
-            box-sizing:
-                border-box;
+        /*
+        |--------------------------------------------------------------------------
+        | RESET
+        |--------------------------------------------------------------------------
+        */
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
         }
+
+
+        :root {
+            --green: #123d2c;
+            --green-dark: #08291d;
+            --green-soft: #edf5f0;
+
+            --orange: #f26335;
+            --orange-soft: #fff1eb;
+
+            --page: #f5f7f5;
+            --white: #ffffff;
+
+            --text: #17241f;
+            --muted: #819188;
+
+            --border: rgba(18, 61, 44, .10);
+        }
+
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
+
+            margin: 0;
+
+            padding: 0;
+        }
+
 
         body {
-            margin: 0;
+            background: var(--page);
 
-            padding: 24px;
-
-            background:
-                #f6f7f5;
-
-            color:
-                #1a382b;
+            color: var(--text);
 
             font-family:
-                Arial,
-                Helvetica,
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
                 sans-serif;
+
+            -webkit-font-smoothing: antialiased;
         }
 
-        .container {
+
+        button,
+        a {
+            font: inherit;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | APP
+        |--------------------------------------------------------------------------
+        */
+
+        .app {
             width: 100%;
 
-            max-width:
-                1100px;
+            max-width: 430px;
 
-            margin:
-                0 auto;
+            min-height: 100dvh;
+
+            margin: 0 auto;
+
+            background: var(--page);
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HEADER
+        |--------------------------------------------------------------------------
+        */
 
         .header {
-            display:
-                flex;
+            position: sticky;
 
-            align-items:
-                flex-start;
+            top: 0;
 
-            justify-content:
-                space-between;
+            z-index: 30;
 
-            gap:
-                20px;
+            display: grid;
 
-            margin-bottom:
-                18px;
+            grid-template-columns:
+                42px
+                minmax(0, 1fr)
+                42px;
+
+            align-items: center;
+
+            min-height: 68px;
+
+            padding:
+                env(safe-area-inset-top)
+                16px
+                0;
+
+            border-bottom:
+                1px solid
+                var(--border);
+
+            background:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .95
+                );
+
+            backdrop-filter:
+                blur(14px);
         }
 
-        .eyebrow {
-            margin:
-                0 0 6px;
 
-            color:
-                #f06535;
-
-            font-size:
-                12px;
-
-            font-weight:
-                700;
-
-            text-transform:
-                uppercase;
+        .header-inner {
+            display: contents;
         }
 
-        h1 {
+
+        .header-action {
+            display: inline-flex;
+
+            width: 40px;
+
+            height: 40px;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border: 0;
+
+            border-radius: 12px;
+
+            background: transparent;
+
+            color: var(--green);
+
+            text-decoration: none;
+        }
+
+
+        .header-action:active {
+            background:
+                rgba(
+                    18,
+                    61,
+                    44,
+                    .06
+                );
+        }
+
+
+        .header-action svg {
+            width: 21px;
+
+            height: 21px;
+        }
+
+
+        .header-copy {
+            min-width: 0;
+
+            text-align: center;
+        }
+
+
+        .header-title {
             margin: 0;
 
-            font-size:
-                26px;
+            overflow: hidden;
+
+            color: var(--green);
+
+            font-size: 13px;
+
+            font-weight: 900;
+
+            text-overflow: ellipsis;
+
+            white-space: nowrap;
         }
 
-        .mountain {
-            margin-top:
-                6px;
 
-            color:
-                #67736d;
+        .header-subtitle {
+            margin: 3px 0 0;
 
-            font-size:
-                13px;
+            color: var(--muted);
+
+            font-size: 8px;
+
+            font-weight: 600;
         }
 
-        .offline-badge {
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAIN
+        |--------------------------------------------------------------------------
+        */
+
+        .main {
             padding:
-                7px 11px;
+                20px
+                16px
+                calc(
+                    38px
+                    +
+                    env(safe-area-inset-bottom)
+                );
+        }
 
-            border-radius:
-                999px;
+
+        /*
+        |--------------------------------------------------------------------------
+        | HERO
+        |--------------------------------------------------------------------------
+        */
+
+        .hero {
+            position: relative;
+
+            overflow: hidden;
+
+            padding: 23px;
+
+            border-radius: 24px;
 
             background:
-                #e9f6ef;
+                linear-gradient(
+                    145deg,
+                    #123d2c,
+                    #08291d
+                );
 
-            color:
-                #137a49;
-
-            font-size:
-                11px;
-
-            font-weight:
-                700;
+            color: white;
         }
 
-        .map-card {
-            overflow:
-                hidden;
+
+        .hero::before {
+            content: '';
+
+            position: absolute;
+
+            top: -90px;
+
+            right: -80px;
+
+            width: 220px;
+
+            height: 220px;
 
             border:
-                1px solid #dfe4e1;
+                1px solid
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .08
+                );
 
-            border-radius:
-                18px;
-
-            background:
-                #ffffff;
+            border-radius: 50%;
         }
 
-        #mapSvg {
-            display:
-                block;
 
-            width:
-                100%;
+        .hero::after {
+            content: '';
 
-            min-height:
-                480px;
+            position: absolute;
 
-            background:
-                #eef2ed;
+            right: -80px;
+
+            bottom: -120px;
+
+            width: 250px;
+
+            height: 250px;
+
+            border:
+                1px solid
+                rgba(
+                    242,
+                    99,
+                    53,
+                    .20
+                );
+
+            border-radius: 50%;
         }
+
+
+        .hero-content {
+            position: relative;
+
+            z-index: 2;
+        }
+
+
+        .hero-label {
+            color: #78ddb7;
+
+            font-size: 8px;
+
+            font-weight: 900;
+
+            letter-spacing: .15em;
+
+            text-transform: uppercase;
+        }
+
+
+        .hero-title {
+            margin:
+                11px
+                0
+                0;
+
+            color: white;
+
+            font-size: 25px;
+
+            line-height: 1.05;
+
+            font-weight: 900;
+
+            letter-spacing: -.04em;
+        }
+
+
+        .hero-description {
+            max-width: 310px;
+
+            margin:
+                12px
+                0
+                0;
+
+            color:
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .60
+                );
+
+            font-size: 10px;
+
+            line-height: 1.7;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATS
+        |--------------------------------------------------------------------------
+        */
 
         .stats {
-            display:
-                grid;
+            display: grid;
 
             grid-template-columns:
                 repeat(
-                    3,
-                    1fr
+                    2,
+                    minmax(
+                        0,
+                        1fr
+                    )
                 );
 
-            border-top:
-                1px solid #e4e7e5;
+            gap: 10px;
+
+            margin-top: 12px;
         }
 
-        .stat {
-            padding:
-                16px;
 
-            text-align:
-                center;
+        .stat-card {
+            padding: 14px;
 
-            border-right:
-                1px solid #e4e7e5;
+            border:
+                1px solid
+                var(--border);
+
+            border-radius: 16px;
+
+            background: white;
         }
 
-        .stat:last-child {
-            border-right:
-                none;
-        }
 
         .stat-label {
-            color:
-                #839089;
+            color: var(--muted);
 
-            font-size:
-                10px;
+            font-size: 8px;
+
+            font-weight: 700;
         }
+
 
         .stat-value {
-            margin-top:
-                5px;
+            margin-top: 5px;
 
-            font-size:
-                15px;
+            color: var(--green);
 
-            font-weight:
-                700;
+            font-size: 17px;
+
+            font-weight: 900;
         }
 
-        .actions {
-            display:
-                flex;
 
-            flex-wrap:
-                wrap;
-
-            gap:
-                8px;
-
-            margin:
-                15px 0;
-        }
-
-        button {
-            min-height:
-                39px;
-
-            padding:
-                0 15px;
-
-            border:
-                1px solid #dce1de;
-
-            border-radius:
-                10px;
-
-            background:
-                white;
-
-            color:
-                #1a382b;
-
-            cursor:
-                pointer;
-
-            font-size:
-                12px;
-
-            font-weight:
-                700;
-        }
-
-        button.primary {
-            border-color:
-                #1a382b;
-
-            background:
-                #1a382b;
-
-            color:
-                white;
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | SECTION
+        |--------------------------------------------------------------------------
+        */
 
         .section {
-            margin-top:
-                20px;
+            margin-top: 25px;
+        }
 
-            padding:
-                18px;
+
+        .section-kicker {
+            color: var(--orange);
+
+            font-size: 8px;
+
+            font-weight: 900;
+
+            letter-spacing: .15em;
+
+            text-transform: uppercase;
+        }
+
+
+        .section-title {
+            margin:
+                7px
+                0
+                0;
+
+            color: var(--green);
+
+            font-size: 21px;
+
+            font-weight: 900;
+
+            letter-spacing: -.03em;
+        }
+
+
+        .section-description {
+            margin:
+                7px
+                0
+                0;
+
+            color: var(--muted);
+
+            font-size: 10px;
+
+            line-height: 1.6;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OPTIONS
+        |--------------------------------------------------------------------------
+        */
+
+        .options {
+            display: grid;
+
+            gap: 12px;
+
+            margin-top: 16px;
+        }
+
+
+        .download-option {
+            display: grid;
+
+            grid-template-columns:
+                50px
+                minmax(
+                    0,
+                    1fr
+                )
+                28px;
+
+            gap: 13px;
+
+            align-items: center;
+
+            width: 100%;
+
+            padding: 15px;
 
             border:
-                1px solid #e0e4e2;
+                1px solid
+                var(--border);
 
-            border-radius:
-                16px;
+            border-radius: 19px;
+
+            background: white;
+
+            color: inherit;
+
+            text-align: left;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 4px 14px
+                rgba(
+                    18,
+                    61,
+                    44,
+                    .035
+                );
+
+            transition:
+                transform .12s ease,
+                border-color .12s ease,
+                box-shadow .12s ease;
+        }
+
+
+        .download-option:hover {
+            border-color:
+                rgba(
+                    242,
+                    99,
+                    53,
+                    .25
+                );
+
+            box-shadow:
+                0 10px 24px
+                rgba(
+                    18,
+                    61,
+                    44,
+                    .07
+                );
+
+            transform:
+                translateY(-1px);
+        }
+
+
+        .download-option:active {
+            transform:
+                scale(.99);
+        }
+
+
+        .download-option:disabled {
+            opacity: .45;
+
+            cursor: not-allowed;
+
+            transform: none;
+        }
+
+
+        .option-icon {
+            display: flex;
+
+            width: 50px;
+
+            height: 50px;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 15px;
+
+            background: var(--orange-soft);
+
+            color: var(--orange);
+        }
+
+
+        .option-icon.gpx {
+            background: var(--green-soft);
+
+            color: var(--green);
+        }
+
+
+        .option-icon svg {
+            width: 22px;
+
+            height: 22px;
+        }
+
+
+        .option-title {
+            display: block;
+
+            color: var(--green);
+
+            font-size: 12px;
+
+            font-weight: 900;
+        }
+
+
+        .option-description {
+            display: block;
+
+            margin-top: 4px;
+
+            color: var(--muted);
+
+            font-size: 8px;
+
+            line-height: 1.55;
+        }
+
+
+        .option-arrow {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            color: #a1afa7;
+        }
+
+
+        .option-arrow svg {
+            width: 18px;
+
+            height: 18px;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | EMPTY
+        |--------------------------------------------------------------------------
+        */
+
+        .empty-state {
+            margin-top: 15px;
+
+            padding: 16px;
+
+            border:
+                1px dashed
+                rgba(
+                    18,
+                    61,
+                    44,
+                    .18
+                );
+
+            border-radius: 16px;
 
             background:
-                white;
+                rgba(
+                    255,
+                    255,
+                    255,
+                    .55
+                );
+
+            color: var(--muted);
+
+            font-size: 9px;
+
+            line-height: 1.6;
+
+            text-align: center;
         }
 
-        .section h2 {
-            margin:
-                0 0 13px;
 
-            font-size:
-                15px;
+        /*
+        |--------------------------------------------------------------------------
+        | INFO
+        |--------------------------------------------------------------------------
+        */
+
+        .info {
+            display: flex;
+
+            gap: 10px;
+
+            margin-top: 18px;
+
+            padding: 14px;
+
+            border-radius: 15px;
+
+            background: #eef3ef;
+
+            color: #718279;
+
+            font-size: 8px;
+
+            line-height: 1.6;
         }
 
-        .checkpoint {
-            display:
-                flex;
 
-            align-items:
-                center;
+        .info svg {
+            width: 17px;
 
-            gap:
-                12px;
+            height: 17px;
+
+            flex: none;
+
+            color: var(--green);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOAST
+        |--------------------------------------------------------------------------
+        */
+
+        .toast {
+            position: fixed;
+
+            right: 16px;
+
+            bottom:
+                calc(
+                    20px
+                    +
+                    env(safe-area-inset-bottom)
+                );
+
+            left: 16px;
+
+            z-index: 100;
+
+            max-width: 398px;
+
+            margin: auto;
 
             padding:
-                11px 0;
-
-            border-bottom:
-                1px solid #eef0ef;
-        }
-
-        .checkpoint:last-child {
-            border-bottom:
-                0;
-        }
-
-        .number {
-            display:
-                flex;
-
-            width:
-                29px;
-
-            height:
-                29px;
-
-            flex-shrink:
-                0;
-
-            align-items:
-                center;
-
-            justify-content:
-                center;
-
-            border-radius:
-                50%;
-
-            background:
-                #1a382b;
-
-            color:
-                white;
-
-            font-size:
-                10px;
-
-            font-weight:
-                700;
-        }
-
-        .checkpoint-title {
-            font-size:
-                12px;
-
-            font-weight:
-                700;
-        }
-
-        .checkpoint-subtitle {
-            margin-top:
-                3px;
-
-            color:
-                #89938e;
-
-            font-size:
-                10px;
-        }
-
-        .notice {
-            margin-top:
+                13px
                 15px;
 
-            padding:
-                12px 14px;
+            border-radius: 14px;
 
-            border-radius:
-                12px;
+            background: var(--green-dark);
 
-            background:
-                #fff4ee;
+            color: white;
 
-            color:
-                #9c4a29;
+            font-size: 9px;
 
-            font-size:
-                11px;
+            font-weight: 700;
 
-            line-height:
-                1.6;
+            text-align: center;
+
+            opacity: 0;
+
+            pointer-events: none;
+
+            transform:
+                translateY(
+                    12px
+                );
+
+            transition:
+                opacity .18s ease,
+                transform .18s ease;
         }
 
-        .footer {
-            margin-top:
-                18px;
 
-            color:
-                #929c96;
+        .toast.show {
+            opacity: 1;
 
-            font-size:
-                10px;
-
-            text-align:
-                center;
+            transform:
+                translateY(
+                    0
+                );
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DESKTOP
+        |--------------------------------------------------------------------------
+        */
 
         @media (
-            max-width: 600px
+            min-width: 700px
         ) {
             body {
                 padding:
-                    12px;
+                    32px
+                    0;
             }
+
+
+            .app {
+                min-height:
+                    calc(
+                        100dvh
+                        -
+                        64px
+                    );
+
+                overflow: hidden;
+
+                border:
+                    1px solid
+                    var(--border);
+
+                border-radius: 28px;
+
+                box-shadow:
+                    0 20px 60px
+                    rgba(
+                        18,
+                        61,
+                        44,
+                        .08
+                    );
+            }
+
 
             .header {
-                display:
-                    block;
-            }
-
-            .offline-badge {
-                display:
-                    inline-block;
-
-                margin-top:
-                    12px;
-            }
-
-            h1 {
-                font-size:
-                    20px;
-            }
-
-            #mapSvg {
-                min-height:
-                    420px;
-            }
-        }
-
-        @media print {
-            body {
-                padding: 0;
-
-                background:
-                    white;
-            }
-
-            .actions {
-                display:
-                    none;
-            }
-
-            .map-card,
-            .section {
-                break-inside:
-                    avoid;
+                border-radius:
+                    28px
+                    28px
+                    0
+                    0;
             }
         }
     </style>
+
 </head>
 
 
 <body>
 
-<div class="container">
+<div class="app">
 
-    <div class="header">
+    {{-- ========================================================= --}}
+    {{-- HEADER --}}
+    {{-- ========================================================= --}}
 
-        <div>
-            <p class="eyebrow">
-                Jalur Bali
-            </p>
+    <header class="header">
 
-            <h1>
-                {{ $trail->name }}
+        <a
+            href="{{ url('/pendaki/jalur/' . $trail->id) }}"
+            class="header-action"
+            aria-label="Kembali ke detail jalur"
+        >
+
+            <svg
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="m15 18-6-6 6-6"
+                />
+            </svg>
+
+        </a>
+
+
+        <div class="header-copy">
+
+            <h1 class="header-title">
+                Download Map Offline
             </h1>
 
-            <div class="mountain">
-                {{ $trail->mountain?->name }}
-
-                @if($trail->mountain?->location)
-                    · {{ $trail->mountain->location }}
-                @endif
-            </div>
-        </div>
-
-
-        <span class="offline-badge">
-            PETA OFFLINE
-        </span>
-
-    </div>
-
-
-    <div class="actions">
-
-        <button
-            type="button"
-            onclick="zoomMap(0.8)"
-        >
-            + Perbesar
-        </button>
-
-        <button
-            type="button"
-            onclick="zoomMap(1.25)"
-        >
-            − Perkecil
-        </button>
-
-        <button
-            type="button"
-            onclick="resetMap()"
-        >
-            Reset
-        </button>
-
-        <button
-            type="button"
-            class="primary"
-            onclick="window.print()"
-        >
-            Cetak / Simpan PDF
-        </button>
-
-    </div>
-
-
-    <div class="map-card">
-
-        <svg
-            id="mapSvg"
-            viewBox="0 0 1000 700"
-            xmlns="http://www.w3.org/2000/svg"
-        >
-        </svg>
-
-
-        <div class="stats">
-
-            <div class="stat">
-                <div class="stat-label">
-                    Jarak
-                </div>
-
-                <div class="stat-value">
-                    {{ $trail->distance_km
-                        ? number_format(
-                            $trail->distance_km,
-                            1,
-                            ',',
-                            '.'
-                        ) . ' km'
-                        : '-'
-                    }}
-                </div>
-            </div>
-
-
-            <div class="stat">
-                <div class="stat-label">
-                    Estimasi
-                </div>
-
-                <div class="stat-value">
-                    {{ $trail->estimated_time_hours
-                        ? $trail->estimated_time_hours . ' jam'
-                        : '-'
-                    }}
-                </div>
-            </div>
-
-
-            <div class="stat">
-                <div class="stat-label">
-                    Kesulitan
-                </div>
-
-                <div class="stat-value">
-                    {{ $trail->difficulty
-                        ? ucfirst($trail->difficulty)
-                        : '-'
-                    }}
-                </div>
-            </div>
+            <p class="header-subtitle">
+                BaliHiking
+            </p>
 
         </div>
 
-    </div>
+
+        <div></div>
+
+    </header>
 
 
-    <div class="notice">
-        File ini menyimpan data jalur secara lokal dan tidak membutuhkan
-        koneksi internet. Gunakan sebagai referensi pendamping. Kondisi
-        medan aktual dapat berubah sehingga tetap perhatikan rambu dan
-        arahan petugas di lokasi.
-    </div>
+    {{-- ========================================================= --}}
+    {{-- CONTENT --}}
+    {{-- ========================================================= --}}
 
+    <main class="main">
 
-    @if(count($checkpoints) > 0)
+        {{-- ===================================================== --}}
+        {{-- HERO --}}
+        {{-- ===================================================== --}}
 
-        <section class="section">
+        <section class="hero">
 
-            <h2>
-                Checkpoint Jalur
-            </h2>
+            <div class="hero-content">
 
-
-            @foreach($checkpoints as $checkpoint)
-
-                <div class="checkpoint">
-
-                    <div class="number">
-                        {{ $loop->iteration }}
-                    </div>
-
-
-                    <div>
-                        <div class="checkpoint-title">
-                            {{ $checkpoint['name'] }}
-                        </div>
-
-
-                        <div class="checkpoint-subtitle">
-                            {{ $checkpoint['type'] ?: 'Checkpoint' }}
-
-                            @if($checkpoint['elevation_m'])
-
-                                ·
-
-                                {{ number_format(
-                                    $checkpoint['elevation_m'],
-                                    0,
-                                    ',',
-                                    '.'
-                                ) }}
-
-                                mdpl
-
-                            @endif
-                        </div>
-                    </div>
-
+                <div class="hero-label">
+                    Jalur Pendakian
                 </div>
 
-            @endforeach
+
+                <h2 class="hero-title">
+                    {{ $trail->name ?? 'Jalur Pendakian' }}
+                </h2>
+
+
+                <p class="hero-description">
+                    Simpan jalur pendakian untuk digunakan ketika
+                    koneksi internet tidak tersedia selama perjalanan.
+                </p>
+
+            </div>
 
         </section>
 
-    @endif
+
+        {{-- ===================================================== --}}
+        {{-- SUMMARY --}}
+        {{-- ===================================================== --}}
+
+        <div class="stats">
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Titik Jalur
+                </div>
+
+                <div class="stat-value">
+                    {{ count($mapPoints ?? []) }}
+                </div>
+
+            </div>
 
 
-    <div class="footer">
-        Diunduh dari Jalur Bali ·
-        {{ now()->locale('id')->translatedFormat('d F Y H:i') }}
-    </div>
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Checkpoint
+                </div>
+
+                <div class="stat-value">
+                    {{ count($checkpointExport ?? []) }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        {{-- ===================================================== --}}
+        {{-- DOWNLOAD SECTION --}}
+        {{-- ===================================================== --}}
+
+        <section class="section">
+
+            <div class="section-kicker">
+                Download
+            </div>
+
+
+            <h2 class="section-title">
+                Pilih Format Map
+            </h2>
+
+
+            <p class="section-description">
+                Gunakan gambar PNG untuk referensi visual atau GPX
+                untuk aplikasi navigasi dan perangkat GPS.
+            </p>
+
+
+            <div class="options">
+
+                {{-- ================================================= --}}
+                {{-- PNG --}}
+                {{-- ================================================= --}}
+
+                <button
+                    type="button"
+                    id="downloadPng"
+                    class="download-option"
+                    @disabled(empty($mapPoints))
+                >
+
+                    <span class="option-icon">
+
+                        <svg
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <rect
+                                x="3"
+                                y="4"
+                                width="18"
+                                height="16"
+                                rx="2"
+                            />
+
+                            <circle
+                                cx="9"
+                                cy="9"
+                                r="2"
+                            />
+
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m21 15-5-5L5 20"
+                            />
+                        </svg>
+
+                    </span>
+
+
+                    <span>
+
+                        <span class="option-title">
+                            PNG Image Map
+                        </span>
+
+                        <span class="option-description">
+                            Gambar jalur lengkap dengan titik start,
+                            finish dan checkpoint.
+                        </span>
+
+                    </span>
+
+
+                    <span class="option-arrow">
+
+                        <svg
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m9 18 6-6-6-6"
+                            />
+                        </svg>
+
+                    </span>
+
+                </button>
+
+
+                {{-- ================================================= --}}
+                {{-- GPX --}}
+                {{-- ================================================= --}}
+
+                <button
+                    type="button"
+                    id="downloadGpx"
+                    class="download-option"
+                    @disabled(empty($mapPoints))
+                >
+
+                    <span class="option-icon gpx">
+
+                        <svg
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z"
+                            />
+
+                            <circle
+                                cx="12"
+                                cy="10"
+                                r="2"
+                            />
+                        </svg>
+
+                    </span>
+
+
+                    <span>
+
+                        <span class="option-title">
+                            GPX Route
+                        </span>
+
+                        <span class="option-description">
+                            File jalur GPS untuk aplikasi navigasi
+                            dan perangkat yang mendukung GPX.
+                        </span>
+
+                    </span>
+
+
+                    <span class="option-arrow">
+
+                        <svg
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m9 18 6-6-6-6"
+                            />
+                        </svg>
+
+                    </span>
+
+                </button>
+
+            </div>
+
+
+            @if (empty($mapPoints))
+
+                <div class="empty-state">
+                    Koordinat jalur belum tersedia sehingga file PNG
+                    dan GPX belum dapat dibuat.
+                </div>
+
+            @endif
+
+        </section>
+
+
+        {{-- ===================================================== --}}
+        {{-- INFORMATION --}}
+        {{-- ===================================================== --}}
+
+        <div class="info">
+
+            <svg
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                />
+
+                <path
+                    stroke-linecap="round"
+                    d="M12 11v5M12 8h.01"
+                />
+            </svg>
+
+
+            <span>
+                PNG dapat disimpan di galeri sebagai referensi jalur.
+                GPX dapat diimpor ke aplikasi navigasi yang mendukung
+                format GPX.
+            </span>
+
+        </div>
+
+    </main>
 
 </div>
+
+
+{{-- =========================================================== --}}
+{{-- TOAST --}}
+{{-- =========================================================== --}}
+
+<div
+    id="toast"
+    class="toast"
+></div>
 
 
 <script>
     /*
     |--------------------------------------------------------------------------
-    | DATA TERSIMPAN LANGSUNG DI FILE
+    | SERVER DATA
     |--------------------------------------------------------------------------
     */
 
-    const routeCoordinates =
-        @json($routeCoordinates);
+    const trail =
+        {{ \Illuminate\Support\Js::from($trailExport ?? []) }};
+
+
+    const rawRoutePoints =
+        {{ \Illuminate\Support\Js::from($mapPoints ?? []) }};
+
+
+    const rawCheckpoints =
+        {{ \Illuminate\Support\Js::from($checkpointExport ?? []) }};
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DOM
+    |--------------------------------------------------------------------------
+    */
+
+    const pngButton =
+        document.getElementById(
+            'downloadPng'
+        );
+
+
+    const gpxButton =
+        document.getElementById(
+            'downloadGpx'
+        );
+
+
+    const toastElement =
+        document.getElementById(
+            'toast'
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALIZE POINT
+    |--------------------------------------------------------------------------
+    */
+
+    function normalizePoint(
+        point
+    ) {
+        if (
+            ! point
+            ||
+            typeof point
+            !==
+            'object'
+        ) {
+            return null;
+        }
+
+
+        const lat =
+            Number(
+                point.lat
+                ??
+                point.latitude
+            );
+
+
+        const lng =
+            Number(
+                point.lng
+                ??
+                point.lon
+                ??
+                point.longitude
+            );
+
+
+        if (
+            ! Number.isFinite(
+                lat
+            )
+            ||
+            ! Number.isFinite(
+                lng
+            )
+        ) {
+            return null;
+        }
+
+
+        const elevation =
+            Number(
+                point.ele
+                ??
+                point.elevation
+                ??
+                point.elevation_m
+            );
+
+
+        return {
+            ...point,
+
+            lat,
+
+            lng,
+
+            ele:
+                Number.isFinite(
+                    elevation
+                )
+                    ? elevation
+                    : null,
+        };
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALIZED DATA
+    |--------------------------------------------------------------------------
+    */
+
+    const routePoints =
+        Array.isArray(
+            rawRoutePoints
+        )
+            ? rawRoutePoints
+                .map(
+                    normalizePoint
+                )
+                .filter(
+                    Boolean
+                )
+            : [];
+
 
     const checkpoints =
-        @json($checkpoints);
-
-
-    const svg =
-        document.getElementById(
-            'mapSvg'
-        );
-
-
-    const WIDTH =
-        1000;
-
-    const HEIGHT =
-        700;
-
-    const PADDING =
-        85;
-
-
-    let initialViewBox = {
-        x: 0,
-        y: 0,
-        width: WIDTH,
-        height: HEIGHT,
-    };
-
-
-    let currentViewBox = {
-        ...initialViewBox
-    };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | HELPERS
-    |--------------------------------------------------------------------------
-    */
-
-    function svgElement(
-        type,
-        attributes = {}
-    ) {
-        const element =
-            document.createElementNS(
-                'http://www.w3.org/2000/svg',
-                type
-            );
-
-
-        Object
-            .entries(
-                attributes
-            )
-            .forEach(
-                ([key, value]) => {
-                    element.setAttribute(
-                        key,
-                        value
-                    );
-                }
-            );
-
-
-        return element;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | EMPTY DATA
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        !Array.isArray(
-            routeCoordinates
+        Array.isArray(
+            rawCheckpoints
         )
-        ||
-        routeCoordinates.length < 2
+            ? rawCheckpoints
+                .map(
+                    normalizePoint
+                )
+                .filter(
+                    Boolean
+                )
+            : [];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOAST
+    |--------------------------------------------------------------------------
+    */
+
+    let toastTimer =
+        null;
+
+
+    function showToast(
+        message
     ) {
-
-        const text =
-            svgElement(
-                'text',
-                {
-                    x:
-                        WIDTH / 2,
-
-                    y:
-                        HEIGHT / 2,
-
-                    'text-anchor':
-                        'middle',
-
-                    fill:
-                        '#7b8780',
-
-                    'font-size':
-                        22,
-
-                    'font-family':
-                        'Arial',
-                }
-            );
+        if (! toastElement) {
+            return;
+        }
 
 
-        text.textContent =
-            'Data koordinat jalur belum tersedia.';
-
-
-        svg.appendChild(
-            text
+        window.clearTimeout(
+            toastTimer
         );
 
-    } else {
 
-        renderMap();
+        toastElement.textContent =
+            message;
 
+
+        toastElement.classList.add(
+            'show'
+        );
+
+
+        toastTimer =
+            window.setTimeout(
+                () => {
+                    toastElement.classList.remove(
+                        'show'
+                    );
+                },
+                2300
+            );
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | RENDER MAP
+    | DOWNLOAD FILE
     |--------------------------------------------------------------------------
     */
 
-    function renderMap() {
+    function downloadBlob(
+        blob,
+        filename
+    ) {
+        const objectUrl =
+            URL.createObjectURL(
+                blob
+            );
 
-        const allPoints = [
-            ...routeCoordinates,
 
-            ...checkpoints.map(
-                checkpoint => [
-                    checkpoint.latitude,
-                    checkpoint.longitude
-                ]
-            ),
+        const link =
+            document.createElement(
+                'a'
+            );
+
+
+        link.href =
+            objectUrl;
+
+
+        link.download =
+            filename;
+
+
+        document.body.appendChild(
+            link
+        );
+
+
+        link.click();
+
+
+        link.remove();
+
+
+        window.setTimeout(
+            () => {
+                URL.revokeObjectURL(
+                    objectUrl
+                );
+            },
+            1000
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SAFE FILE NAME
+    |--------------------------------------------------------------------------
+    */
+
+    function downloadBaseName()
+    {
+        const value =
+            String(
+                trail.download_base_name
+                ??
+                trail.name
+                ??
+                'balihiking-route'
+            );
+
+
+        return value
+            .trim()
+            .replace(
+                /[^a-zA-Z0-9-_]+/g,
+                '-'
+            )
+            .replace(
+                /^-+|-+$/g,
+                ''
+            )
+            ||
+            'balihiking-route';
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | XML ESCAPE
+    |--------------------------------------------------------------------------
+    */
+
+    function escapeXml(
+        value
+    ) {
+        return String(
+            value
+            ??
+            ''
+        )
+            .replaceAll(
+                '&',
+                '&amp;'
+            )
+            .replaceAll(
+                '<',
+                '&lt;'
+            )
+            .replaceAll(
+                '>',
+                '&gt;'
+            )
+            .replaceAll(
+                '"',
+                '&quot;'
+            )
+            .replaceAll(
+                '\'',
+                '&apos;'
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | GPX BUILDER
+    |--------------------------------------------------------------------------
+    |
+    | Deklarasi XML sengaja dibentuk dari beberapa string agar tidak
+    | ditafsirkan sebagai tag PHP oleh parser Blade/PHP.
+    |--------------------------------------------------------------------------
+    */
+
+    function buildGpx()
+    {
+        if (
+            routePoints.length
+            ===
+            0
+        ) {
+            return null;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | XML DECLARATION
+        |--------------------------------------------------------------------------
+        */
+
+        const xmlDeclaration =
+            '<'
+            +
+            '?xml version="1.0" encoding="UTF-8"?'
+            +
+            '>';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRAIL INFORMATION
+        |--------------------------------------------------------------------------
+        */
+
+        const trailName =
+            escapeXml(
+                trail.name
+                ??
+                'Jalur Pendakian'
+            );
+
+
+        const mountainName =
+            escapeXml(
+                trail.mountain
+                ??
+                'BaliHiking'
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | WAYPOINTS
+        |--------------------------------------------------------------------------
+        */
+
+        const waypoints =
+            checkpoints
+                .map(
+                    (
+                        checkpoint,
+                        index
+                    ) => {
+                        const name =
+                            escapeXml(
+                                checkpoint.name
+                                ??
+                                `Checkpoint ${index + 1}`
+                            );
+
+
+                        const type =
+                            escapeXml(
+                                checkpoint.type
+                                ??
+                                'checkpoint'
+                            );
+
+
+                        const elevation =
+                            checkpoint.ele
+                            !==
+                            null
+                                ? `        <ele>${checkpoint.ele}</ele>`
+                                : null;
+
+
+                        return [
+                            `    <wpt lat="${checkpoint.lat}" lon="${checkpoint.lng}">`,
+
+                            elevation,
+
+                            `        <name>${name}</name>`,
+
+                            `        <type>${type}</type>`,
+
+                            '    </wpt>',
+                        ]
+                            .filter(
+                                Boolean
+                            )
+                            .join(
+                                '\n'
+                            );
+                    }
+                );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRACK POINTS
+        |--------------------------------------------------------------------------
+        */
+
+        const trackPoints =
+            routePoints
+                .map(
+                    (
+                        point
+                    ) => {
+                        const elevation =
+                            point.ele
+                            !==
+                            null
+                                ? `                <ele>${point.ele}</ele>`
+                                : null;
+
+
+                        return [
+                            `            <trkpt lat="${point.lat}" lon="${point.lng}">`,
+
+                            elevation,
+
+                            '            </trkpt>',
+                        ]
+                            .filter(
+                                Boolean
+                            )
+                            .join(
+                                '\n'
+                            );
+                    }
+                );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GPX
+        |--------------------------------------------------------------------------
+        */
+
+        const lines = [
+            xmlDeclaration,
+
+            '<gpx',
+
+            '    version="1.1"',
+
+            '    creator="BaliHiking"',
+
+            '    xmlns="http://www.topografix.com/GPX/1/1"',
+
+            '    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+
+            '    xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd"',
+
+            '>',
+
+            '    <metadata>',
+
+            `        <name>${trailName}</name>`,
+
+            `        <desc>${mountainName} - BaliHiking</desc>`,
+
+            '    </metadata>',
+
+            '',
+
+            ...waypoints,
+
+            '',
+
+            '    <trk>',
+
+            `        <name>${trailName}</name>`,
+
+            '        <type>hiking</type>',
+
+            '        <trkseg>',
+
+            ...trackPoints,
+
+            '        </trkseg>',
+
+            '    </trk>',
+
+            '</gpx>',
         ];
 
 
+        return lines
+            .filter(
+                (
+                    line
+                ) =>
+                    line
+                    !==
+                    null
+                    &&
+                    line
+                    !==
+                    undefined
+            )
+            .join(
+                '\n'
+            );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DOWNLOAD GPX
+    |--------------------------------------------------------------------------
+    */
+
+    gpxButton?.addEventListener(
+        'click',
+        () => {
+            try {
+                const gpx =
+                    buildGpx();
+
+
+                if (! gpx) {
+                    showToast(
+                        'Data jalur belum tersedia.'
+                    );
+
+                    return;
+                }
+
+
+                const blob =
+                    new Blob(
+                        [
+                            gpx
+                        ],
+                        {
+                            type:
+                                'application/gpx+xml;charset=utf-8',
+                        }
+                    );
+
+
+                downloadBlob(
+                    blob,
+                    `${downloadBaseName()}.gpx`
+                );
+
+
+                showToast(
+                    'File GPX berhasil disiapkan.'
+                );
+
+            } catch (
+                error
+            ) {
+                console.error(
+                    'GPX error:',
+                    error
+                );
+
+
+                showToast(
+                    'File GPX gagal dibuat.'
+                );
+            }
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MAP PROJECTION
+    |--------------------------------------------------------------------------
+    */
+
+    function createProjector(
+        points,
+        width,
+        height,
+        padding
+    ) {
         const latitudes =
-            allPoints.map(
-                point =>
-                    Number(
-                        point[0]
-                    )
+            points.map(
+                (
+                    point
+                ) =>
+                    point.lat
             );
 
 
         const longitudes =
-            allPoints.map(
-                point =>
-                    Number(
-                        point[1]
-                    )
+            points.map(
+                (
+                    point
+                ) =>
+                    point.lng
             );
 
 
@@ -835,98 +1892,323 @@
 
 
         /*
-         * Hindari pembagian nol.
-         */
-        if (
-            maxLat === minLat
-        ) {
-            maxLat +=
-                0.00001;
+        |--------------------------------------------------------------------------
+        | ZERO RANGE PROTECTION
+        |--------------------------------------------------------------------------
+        */
 
-            minLat -=
-                0.00001;
+        if (
+            maxLat
+            ===
+            minLat
+        ) {
+            maxLat += .001;
+
+            minLat -= .001;
         }
 
 
         if (
-            maxLng === minLng
+            maxLng
+            ===
+            minLng
         ) {
-            maxLng +=
-                0.00001;
+            maxLng += .001;
 
-            minLng -=
-                0.00001;
+            minLng -= .001;
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | PROJECTION
+        | MARGIN
         |--------------------------------------------------------------------------
         */
 
-        function project(
-            latitude,
-            longitude
+        const latMargin =
+            (
+                maxLat
+                -
+                minLat
+            )
+            *
+            .12;
+
+
+        const lngMargin =
+            (
+                maxLng
+                -
+                minLng
+            )
+            *
+            .12;
+
+
+        minLat -=
+            latMargin;
+
+
+        maxLat +=
+            latMargin;
+
+
+        minLng -=
+            lngMargin;
+
+
+        maxLng +=
+            lngMargin;
+
+
+        const drawableWidth =
+            width
+            -
+            (
+                padding
+                *
+                2
+            );
+
+
+        const drawableHeight =
+            height
+            -
+            (
+                padding
+                *
+                2
+            );
+
+
+        return {
+            project(
+                point
+            ) {
+                const x =
+                    padding
+                    +
+                    (
+                        (
+                            point.lng
+                            -
+                            minLng
+                        )
+                        /
+                        (
+                            maxLng
+                            -
+                            minLng
+                        )
+                    )
+                    *
+                    drawableWidth;
+
+
+                const y =
+                    padding
+                    +
+                    (
+                        1
+                        -
+                        (
+                            (
+                                point.lat
+                                -
+                                minLat
+                            )
+                            /
+                            (
+                                maxLat
+                                -
+                                minLat
+                            )
+                        )
+                    )
+                    *
+                    drawableHeight;
+
+
+                return {
+                    x,
+
+                    y,
+                };
+            },
+
+            bounds: {
+                minLat,
+
+                maxLat,
+
+                minLng,
+
+                maxLng,
+            },
+        };
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ROUNDED RECTANGLE
+    |--------------------------------------------------------------------------
+    */
+
+    function roundedRectangle(
+        ctx,
+        x,
+        y,
+        width,
+        height,
+        radius
+    ) {
+        const r =
+            Math.min(
+                radius,
+                width / 2,
+                height / 2
+            );
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            x + r,
+            y
+        );
+
+
+        ctx.arcTo(
+            x + width,
+            y,
+            x + width,
+            y + height,
+            r
+        );
+
+
+        ctx.arcTo(
+            x + width,
+            y + height,
+            x,
+            y + height,
+            r
+        );
+
+
+        ctx.arcTo(
+            x,
+            y + height,
+            x,
+            y,
+            r
+        );
+
+
+        ctx.arcTo(
+            x,
+            y,
+            x + width,
+            y,
+            r
+        );
+
+
+        ctx.closePath();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DRAW MARKER
+    |--------------------------------------------------------------------------
+    */
+
+    function drawMarker(
+        ctx,
+        x,
+        y,
+        color,
+        radius = 12
+    ) {
+        ctx.beginPath();
+
+
+        ctx.arc(
+            x,
+            y,
+            radius,
+            0,
+            Math.PI * 2
+        );
+
+
+        ctx.fillStyle =
+            color;
+
+
+        ctx.fill();
+
+
+        ctx.lineWidth =
+            5;
+
+
+        ctx.strokeStyle =
+            '#FFFFFF';
+
+
+        ctx.stroke();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD PNG MAP
+    |--------------------------------------------------------------------------
+    */
+
+    function buildPngMap()
+    {
+        if (
+            routePoints.length
+            ===
+            0
         ) {
-
-            const x =
-                PADDING
-                +
-                (
-                    (
-                        longitude
-                        -
-                        minLng
-                    )
-                    /
-                    (
-                        maxLng
-                        -
-                        minLng
-                    )
-                )
-                *
-                (
-                    WIDTH
-                    -
-                    PADDING
-                    *
-                    2
-                );
+            return null;
+        }
 
 
-            const y =
-                PADDING
-                +
-                (
-                    (
-                        maxLat
-                        -
-                        latitude
-                    )
-                    /
-                    (
-                        maxLat
-                        -
-                        minLat
-                    )
-                )
-                *
-                (
-                    HEIGHT
-                    -
-                    PADDING
-                    *
-                    2
-                );
+        /*
+        |--------------------------------------------------------------------------
+        | CANVAS
+        |--------------------------------------------------------------------------
+        */
+
+        const canvas =
+            document.createElement(
+                'canvas'
+            );
 
 
-            return {
-                x,
-                y
-            };
+        canvas.width =
+            1600;
 
+
+        canvas.height =
+            1000;
+
+
+        const ctx =
+            canvas.getContext(
+                '2d'
+            );
+
+
+        if (! ctx) {
+            return null;
         }
 
 
@@ -936,26 +2218,167 @@
         |--------------------------------------------------------------------------
         */
 
-        svg.appendChild(
-            svgElement(
-                'rect',
-                {
-                    x:
-                        0,
+        ctx.fillStyle =
+            '#F6F7F3';
 
-                    y:
-                        0,
 
-                    width:
-                        WIDTH,
+        ctx.fillRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
 
-                    height:
-                        HEIGHT,
 
-                    fill:
-                        '#eef2ed',
-                }
-            )
+        /*
+        |--------------------------------------------------------------------------
+        | TOP HEADER
+        |--------------------------------------------------------------------------
+        */
+
+        ctx.fillStyle =
+            '#123D2C';
+
+
+        ctx.fillRect(
+            0,
+            0,
+            canvas.width,
+            135
+        );
+
+
+        ctx.fillStyle =
+            '#78DDB7';
+
+
+        ctx.font =
+            '800 17px system-ui, -apple-system, sans-serif';
+
+
+        ctx.fillText(
+            'BALI HIKING • OFFLINE ROUTE MAP',
+            70,
+            45
+        );
+
+
+        ctx.fillStyle =
+            '#FFFFFF';
+
+
+        ctx.font =
+            '800 35px system-ui, -apple-system, sans-serif';
+
+
+        ctx.fillText(
+            String(
+                trail.name
+                ??
+                'Jalur Pendakian'
+            ),
+            70,
+            93
+        );
+
+
+        ctx.textAlign =
+            'right';
+
+
+        ctx.fillStyle =
+            '#A5BEB3';
+
+
+        ctx.font =
+            '500 16px system-ui, -apple-system, sans-serif';
+
+
+        ctx.fillText(
+            String(
+                trail.mountain
+                ??
+                'BaliHiking'
+            ),
+            1530,
+            76
+        );
+
+
+        ctx.textAlign =
+            'left';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAP FRAME
+        |--------------------------------------------------------------------------
+        */
+
+        const mapX =
+            64;
+
+
+        const mapY =
+            170;
+
+
+        const mapWidth =
+            1472;
+
+
+        const mapHeight =
+            700;
+
+
+        roundedRectangle(
+            ctx,
+            mapX,
+            mapY,
+            mapWidth,
+            mapHeight,
+            25
+        );
+
+
+        ctx.fillStyle =
+            '#FFFFFF';
+
+
+        ctx.fill();
+
+
+        ctx.save();
+
+
+        roundedRectangle(
+            ctx,
+            mapX,
+            mapY,
+            mapWidth,
+            mapHeight,
+            25
+        );
+
+
+        ctx.clip();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SOFT MAP BACKGROUND
+        |--------------------------------------------------------------------------
+        */
+
+        ctx.fillStyle =
+            '#F8F9F5';
+
+
+        ctx.fillRect(
+            mapX,
+            mapY,
+            mapWidth,
+            mapHeight
         );
 
 
@@ -965,120 +2388,168 @@
         |--------------------------------------------------------------------------
         */
 
+        ctx.strokeStyle =
+            '#E8ECE6';
+
+
+        ctx.lineWidth =
+            1;
+
+
+        const gridSize =
+            55;
+
+
         for (
-            let i = 1;
-            i < 8;
-            i++
+            let x = mapX;
+            x <= mapX + mapWidth;
+            x += gridSize
         ) {
-
-            const x =
-                (
-                    WIDTH / 8
-                )
-                *
-                i;
+            ctx.beginPath();
 
 
-            const y =
-                (
-                    HEIGHT / 8
-                )
-                *
-                i;
-
-
-            svg.appendChild(
-                svgElement(
-                    'line',
-                    {
-                        x1:
-                            x,
-
-                        y1:
-                            0,
-
-                        x2:
-                            x,
-
-                        y2:
-                            HEIGHT,
-
-                        stroke:
-                            '#dfe5e1',
-
-                        'stroke-width':
-                            1,
-                    }
-                )
+            ctx.moveTo(
+                x,
+                mapY
             );
 
 
-            svg.appendChild(
-                svgElement(
-                    'line',
-                    {
-                        x1:
-                            0,
-
-                        y1:
-                            y,
-
-                        x2:
-                            WIDTH,
-
-                        y2:
-                            y,
-
-                        stroke:
-                            '#dfe5e1',
-
-                        'stroke-width':
-                            1,
-                    }
-                )
+            ctx.lineTo(
+                x,
+                mapY + mapHeight
             );
 
+
+            ctx.stroke();
+        }
+
+
+        for (
+            let y = mapY;
+            y <= mapY + mapHeight;
+            y += gridSize
+        ) {
+            ctx.beginPath();
+
+
+            ctx.moveTo(
+                mapX,
+                y
+            );
+
+
+            ctx.lineTo(
+                mapX + mapWidth,
+                y
+            );
+
+
+            ctx.stroke();
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | NORTH ARROW
+        | PROJECTION
         |--------------------------------------------------------------------------
         */
 
-        const north =
-            svgElement(
-                'text',
-                {
-                    x:
-                        WIDTH - 60,
+        const allPoints =
+            [
+                ...routePoints,
 
-                    y:
-                        45,
+                ...checkpoints,
+            ];
 
-                    'text-anchor':
-                        'middle',
 
-                    fill:
-                        '#1a382b',
-
-                    'font-size':
-                        17,
-
-                    'font-weight':
-                        'bold',
-                }
+        const projector =
+            createProjector(
+                allPoints,
+                mapWidth,
+                mapHeight,
+                95
             );
 
 
-        north.textContent =
-            'N ↑';
+        function project(
+            point
+        ) {
+            const projected =
+                projector.project(
+                    point
+                );
 
 
-        svg.appendChild(
-            north
+            return {
+                x:
+                    mapX
+                    +
+                    projected.x,
+
+                y:
+                    mapY
+                    +
+                    projected.y,
+            };
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ROUTE WHITE BORDER
+        |--------------------------------------------------------------------------
+        */
+
+        ctx.beginPath();
+
+
+        routePoints.forEach(
+            (
+                point,
+                index
+            ) => {
+                const projected =
+                    project(
+                        point
+                    );
+
+
+                if (
+                    index
+                    ===
+                    0
+                ) {
+                    ctx.moveTo(
+                        projected.x,
+                        projected.y
+                    );
+                } else {
+                    ctx.lineTo(
+                        projected.x,
+                        projected.y
+                    );
+                }
+            }
         );
+
+
+        ctx.strokeStyle =
+            '#FFFFFF';
+
+
+        ctx.lineWidth =
+            17;
+
+
+        ctx.lineJoin =
+            'round';
+
+
+        ctx.lineCap =
+            'round';
+
+
+        ctx.stroke();
 
 
         /*
@@ -1087,83 +2558,141 @@
         |--------------------------------------------------------------------------
         */
 
-        const points =
-            routeCoordinates
-                .map(
-                    coordinate => {
-
-                        const p =
-                            project(
-                                Number(
-                                    coordinate[0]
-                                ),
-
-                                Number(
-                                    coordinate[1]
-                                )
-                            );
+        ctx.beginPath();
 
 
-                        return `${p.x},${p.y}`;
+        routePoints.forEach(
+            (
+                point,
+                index
+            ) => {
+                const projected =
+                    project(
+                        point
+                    );
 
-                    }
-                )
-                .join(' ');
 
-
-        /*
-         * Outline
-         */
-        svg.appendChild(
-            svgElement(
-                'polyline',
-                {
-                    points,
-
-                    fill:
-                        'none',
-
-                    stroke:
-                        '#ffffff',
-
-                    'stroke-width':
-                        15,
-
-                    'stroke-linecap':
-                        'round',
-
-                    'stroke-linejoin':
-                        'round',
+                if (
+                    index
+                    ===
+                    0
+                ) {
+                    ctx.moveTo(
+                        projected.x,
+                        projected.y
+                    );
+                } else {
+                    ctx.lineTo(
+                        projected.x,
+                        projected.y
+                    );
                 }
-            )
+            }
         );
 
 
+        ctx.strokeStyle =
+            '#123D2C';
+
+
+        ctx.lineWidth =
+            8;
+
+
+        ctx.stroke();
+
+
         /*
-         * Main line
-         */
-        svg.appendChild(
-            svgElement(
-                'polyline',
-                {
-                    points,
+        |--------------------------------------------------------------------------
+        | CHECKPOINTS
+        |--------------------------------------------------------------------------
+        */
 
-                    fill:
-                        'none',
+        checkpoints.forEach(
+            (
+                checkpoint,
+                index
+            ) => {
+                const projected =
+                    project(
+                        checkpoint
+                    );
 
-                    stroke:
-                        '#1a382b',
 
-                    'stroke-width':
-                        8,
+                drawMarker(
+                    ctx,
+                    projected.x,
+                    projected.y,
+                    '#F26335',
+                    10
+                );
 
-                    'stroke-linecap':
-                        'round',
 
-                    'stroke-linejoin':
-                        'round',
-                }
-            )
+                const name =
+                    String(
+                        checkpoint.name
+                        ??
+                        `Checkpoint ${index + 1}`
+                    );
+
+
+                const shortName =
+                    name.length
+                    >
+                    23
+                        ? `${name.slice(0, 21)}…`
+                        : name;
+
+
+                ctx.font =
+                    '700 15px system-ui, -apple-system, sans-serif';
+
+
+                const textWidth =
+                    ctx.measureText(
+                        shortName
+                    ).width;
+
+
+                const labelX =
+                    projected.x
+                    +
+                    18;
+
+
+                const labelY =
+                    projected.y
+                    -
+                    17;
+
+
+                roundedRectangle(
+                    ctx,
+                    labelX,
+                    labelY,
+                    textWidth + 24,
+                    34,
+                    9
+                );
+
+
+                ctx.fillStyle =
+                    'rgba(255,255,255,.96)';
+
+
+                ctx.fill();
+
+
+                ctx.fillStyle =
+                    '#123D2C';
+
+
+                ctx.fillText(
+                    shortName,
+                    labelX + 12,
+                    labelY + 22
+                );
+            }
         );
 
 
@@ -1175,21 +2704,18 @@
 
         const start =
             project(
-                Number(
-                    routeCoordinates[0][0]
-                ),
-
-                Number(
-                    routeCoordinates[0][1]
-                )
+                routePoints[
+                    0
+                ]
             );
 
 
-        drawPoint(
+        drawMarker(
+            ctx,
             start.x,
             start.y,
-            '#f06535',
-            'Start'
+            '#16A66A',
+            15
         );
 
 
@@ -1199,325 +2725,282 @@
         |--------------------------------------------------------------------------
         */
 
-        const finishCoordinate =
-            routeCoordinates[
-                routeCoordinates.length - 1
-            ];
-
-
         const finish =
             project(
-                Number(
-                    finishCoordinate[0]
-                ),
-
-                Number(
-                    finishCoordinate[1]
-                )
+                routePoints[
+                    routePoints.length
+                    -
+                    1
+                ]
             );
 
 
-        drawPoint(
+        drawMarker(
+            ctx,
             finish.x,
             finish.y,
-            '#1a382b',
-            'Puncak'
+            '#F26335',
+            15
         );
 
 
         /*
         |--------------------------------------------------------------------------
-        | CHECKPOINT
+        | NORTH INDICATOR
         |--------------------------------------------------------------------------
         */
 
-        checkpoints.forEach(
-            (
-                checkpoint,
-                index
-            ) => {
-
-                const point =
-                    project(
-                        Number(
-                            checkpoint.latitude
-                        ),
-
-                        Number(
-                            checkpoint.longitude
-                        )
-                    );
+        ctx.fillStyle =
+            '#123D2C';
 
 
-                const circle =
-                    svgElement(
-                        'circle',
-                        {
-                            cx:
-                                point.x,
-
-                            cy:
-                                point.y,
-
-                            r:
-                                13,
-
-                            fill:
-                                '#ffffff',
-
-                            stroke:
-                                '#1a382b',
-
-                            'stroke-width':
-                                5,
-                        }
-                    );
+        ctx.font =
+            '900 22px system-ui, -apple-system, sans-serif';
 
 
-                svg.appendChild(
-                    circle
+        ctx.fillText(
+            'N',
+            mapX + mapWidth - 66,
+            mapY + 54
+        );
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            mapX + mapWidth - 55,
+            mapY + 67
+        );
+
+
+        ctx.lineTo(
+            mapX + mapWidth - 66,
+            mapY + 93
+        );
+
+
+        ctx.lineTo(
+            mapX + mapWidth - 44,
+            mapY + 93
+        );
+
+
+        ctx.closePath();
+
+
+        ctx.fill();
+
+
+        ctx.restore();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LEGEND
+        |--------------------------------------------------------------------------
+        */
+
+        drawMarker(
+            ctx,
+            79,
+            923,
+            '#16A66A',
+            7
+        );
+
+
+        ctx.fillStyle =
+            '#64766D';
+
+
+        ctx.font =
+            '600 14px system-ui, -apple-system, sans-serif';
+
+
+        ctx.fillText(
+            'Start',
+            96,
+            928
+        );
+
+
+        drawMarker(
+            ctx,
+            172,
+            923,
+            '#F26335',
+            7
+        );
+
+
+        ctx.fillText(
+            'Finish',
+            189,
+            928
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COORDINATES
+        |--------------------------------------------------------------------------
+        */
+
+        ctx.fillStyle =
+            '#89998F';
+
+
+        ctx.font =
+            '500 12px system-ui, -apple-system, sans-serif';
+
+
+        const startText =
+            `Start ${routePoints[0].lat.toFixed(6)}, ${routePoints[0].lng.toFixed(6)}`;
+
+
+        ctx.fillText(
+            startText,
+            70,
+            970
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FOOTER
+        |--------------------------------------------------------------------------
+        */
+
+        ctx.textAlign =
+            'right';
+
+
+        ctx.fillStyle =
+            '#98A69F';
+
+
+        ctx.font =
+            '500 13px system-ui, -apple-system, sans-serif';
+
+
+        ctx.fillText(
+            'Generated by BaliHiking',
+            1530,
+            928
+        );
+
+
+        ctx.fillText(
+            'Gunakan jalur ini sebagai referensi pendakian offline.',
+            1530,
+            955
+        );
+
+
+        ctx.textAlign =
+            'left';
+
+
+        return canvas;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DOWNLOAD PNG
+    |--------------------------------------------------------------------------
+    */
+
+    pngButton?.addEventListener(
+        'click',
+        () => {
+            if (
+                routePoints.length
+                ===
+                0
+            ) {
+                showToast(
+                    'Data jalur belum tersedia.'
                 );
 
-
-                const text =
-                    svgElement(
-                        'text',
-                        {
-                            x:
-                                point.x,
-
-                            y:
-                                point.y + 4,
-
-                            'text-anchor':
-                                'middle',
-
-                            fill:
-                                '#1a382b',
-
-                            'font-size':
-                                10,
-
-                            'font-weight':
-                                'bold',
-                        }
-                    );
-
-
-                text.textContent =
-                    index + 1;
-
-
-                svg.appendChild(
-                    text
-                );
-
-
-                drawLabel(
-                    point.x,
-                    point.y - 24,
-                    checkpoint.name
-                );
-
+                return;
             }
-        );
-
-    }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | DRAW POINT
-    |--------------------------------------------------------------------------
-    */
-
-    function drawPoint(
-        x,
-        y,
-        color,
-        label
-    ) {
-
-        svg.appendChild(
-            svgElement(
-                'circle',
-                {
-                    cx:
-                        x,
-
-                    cy:
-                        y,
-
-                    r:
-                        13,
-
-                    fill:
-                        color,
-
-                    stroke:
-                        '#ffffff',
-
-                    'stroke-width':
-                        5,
-                }
-            )
-        );
+            pngButton.disabled =
+                true;
 
 
-        drawLabel(
-            x,
-            y - 25,
-            label
-        );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DRAW LABEL
-    |--------------------------------------------------------------------------
-    */
-
-    function drawLabel(
-        x,
-        y,
-        value
-    ) {
-
-        const text =
-            svgElement(
-                'text',
-                {
-                    x,
-                    y,
-
-                    'text-anchor':
-                        'middle',
-
-                    fill:
-                        '#1a382b',
-
-                    'font-size':
-                        12,
-
-                    'font-weight':
-                        'bold',
-
-                    'paint-order':
-                        'stroke',
-
-                    stroke:
-                        '#ffffff',
-
-                    'stroke-width':
-                        5,
-
-                    'stroke-linejoin':
-                        'round',
-                }
+            showToast(
+                'Menyiapkan PNG map...'
             );
 
 
-        text.textContent =
-            value;
+            window.requestAnimationFrame(
+                () => {
+                    try {
+                        const canvas =
+                            buildPngMap();
 
 
-        svg.appendChild(
-            text
-        );
+                        if (! canvas) {
+                            showToast(
+                                'PNG map gagal dibuat.'
+                            );
 
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ZOOM
-    |--------------------------------------------------------------------------
-    */
-
-    function zoomMap(
-        factor
-    ) {
-
-        const centerX =
-            currentViewBox.x
-            +
-            currentViewBox.width
-            /
-            2;
+                            return;
+                        }
 
 
-        const centerY =
-            currentViewBox.y
-            +
-            currentViewBox.height
-            /
-            2;
+                        canvas.toBlob(
+                            (
+                                blob
+                            ) => {
+                                if (! blob) {
+                                    showToast(
+                                        'PNG map gagal dibuat.'
+                                    );
+
+                                    return;
+                                }
 
 
-        const width =
-            currentViewBox.width
-            *
-            factor;
+                                downloadBlob(
+                                    blob,
+                                    `${downloadBaseName()}-map.png`
+                                );
 
 
-        const height =
-            currentViewBox.height
-            *
-            factor;
+                                showToast(
+                                    'PNG map berhasil disiapkan.'
+                                );
+                            },
+                            'image/png',
+                            1
+                        );
+
+                    } catch (
+                        error
+                    ) {
+                        console.error(
+                            'PNG error:',
+                            error
+                        );
 
 
-        currentViewBox = {
+                        showToast(
+                            'PNG map gagal dibuat.'
+                        );
 
-            x:
-                centerX
-                -
-                width / 2,
-
-            y:
-                centerY
-                -
-                height / 2,
-
-            width,
-
-            height,
-
-        };
-
-
-        applyViewBox();
-
-    }
-
-
-    function resetMap() {
-
-        currentViewBox = {
-            ...initialViewBox
-        };
-
-
-        applyViewBox();
-
-    }
-
-
-    function applyViewBox() {
-
-        svg.setAttribute(
-            'viewBox',
-            [
-                currentViewBox.x,
-                currentViewBox.y,
-                currentViewBox.width,
-                currentViewBox.height,
-            ].join(' ')
-        );
-
-    }
-
+                    } finally {
+                        pngButton.disabled =
+                            false;
+                    }
+                }
+            );
+        }
+    );
 </script>
 
 </body>
